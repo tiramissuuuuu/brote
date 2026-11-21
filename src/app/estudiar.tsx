@@ -8,6 +8,7 @@ import { Panel } from '@/components/panel';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
 import { msEstaSemana } from '@/lib/brote';
+import { vibrar } from '@/lib/vibrar';
 import { useJardin } from '@/state/jardin';
 
 /** Se abre con el botón redondo del medio: elegís la materia y arranca el cronómetro. */
@@ -17,6 +18,7 @@ export default function Estudiar() {
   const ahora = useAhora(activa !== null);
 
   const elegir = (id: string) => {
+    vibrar('media');
     empezar(id);
     router.replace({ pathname: '/materia/[id]', params: { id } });
   };

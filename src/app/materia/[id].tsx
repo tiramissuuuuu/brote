@@ -8,6 +8,8 @@ import { BarraProgreso } from '@/components/barra-progreso';
 import { Boton } from '@/components/boton';
 import { Encabezado } from '@/components/encabezado';
 import { alturaSuelo, Escena } from '@/components/escena';
+import { Festejo } from '@/components/festejo';
+import { ModoFoco } from '@/components/modo-foco';
 import { Panel } from '@/components/panel';
 import { TarjetaDato } from '@/components/tarjeta-dato';
 import { Texto } from '@/components/texto';
@@ -17,12 +19,12 @@ import {
   calcularProgreso,
   formatoDuracion,
   formatoFecha,
-  formatoReloj,
   formatoSemana,
   historialSemanal,
   nombreEtapa,
 } from '@/lib/brote';
 import { ESPECIES } from '@/lib/especies';
+import { vibrar } from '@/lib/vibrar';
 import { useJardin } from '@/state/jardin';
 
 const ATAJOS = [
@@ -49,6 +51,8 @@ export default function PantallaMateria() {
   const ahora = useAhora(jardin.activa !== null);
   const [sesionABorrar, setSesionABorrar] = useState<string | null>(null);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+  // Al terminar una sesión: cuánto duró, para el festejo.
+  const [sesionTerminada, setSesionTerminada] = useState<number | null>(null);
 
   const materia = jardin.materias.find((m) => m.id === id);
   if (!materia) return <Redirect href="/" />;
@@ -85,6 +89,18 @@ export default function PantallaMateria() {
     jardin.archivarMateria(materia.id);
   };
 
+  // Mientras se estudia, solo el modo foco.
+  if (estaActiva && activa) {
+    const terminarSesion = () => {
+      vibrar('exito');
+      setSesionTerminada(Date.now() - activa.inicio);
+      jardin.terminar();
+    };
+    return (
+      <ModoFoco materia={materia} inicio={activa.inicio} ahora={ahora} progreso={progreso} onTerminar={terminarSesion} />
+    );
+  }
+
   return (
     <View style={estilos.pantalla}>
       <ScrollView contentContainerStyle={[estilos.contenido, { paddingBottom: insets.bottom + Espacio.xl * 2 }]}>
@@ -105,7 +121,7 @@ export default function PantallaMateria() {
           </View>
 
           <View style={estilos.cuerpo}>
-            {plantada === '1' && sesiones.length === 0 && !estaActiva && (
+            {plantada === '1' && sesiones.length === 0 && (
               <View style={estilos.sorpresa}>
                 <Texto variante="subtitulo" style={estilos.centrado}>
                   🎉 ¡Te tocó un {especie.nombre}!
@@ -118,21 +134,13 @@ export default function PantallaMateria() {
 
             <View>
               <Texto variante="enorme">
-                {estaActiva && activa ? (
-                  formatoReloj(ahora - activa.inicio)
-                ) : (
-                  <>
-                    {Math.floor(progreso * 100)}
-                    <Texto variante="enorme" style={estilos.porciento}>
-                      %
-                    </Texto>
-                  </>
-                )}
+                {Math.floor(progreso * 100)}
+                <Texto variante="enorme" style={estilos.porciento}>
+                  %
+                </Texto>
               </Texto>
               <Texto variante="chico" color={Colores.blancoSuave} style={estilos.centrado}>
-                {estaActiva
-                  ? `Regando tu ${especie.nombre.toLowerCase()} · ${Math.floor(progreso * 100)}% de la meta`
-                  : `${nombreEtapa(progreso)} · ${formatoDuracion(msSemana)} de ${materia.metaSemanal}h esta semana`}
+                {`${nombreEtapa(progreso)} · ${formatoDuracion(msSemana)} de ${materia.metaSemanal}h esta semana`}
               </Texto>
             </View>
             <BarraProgreso progreso={progreso} />
@@ -143,18 +151,14 @@ export default function PantallaMateria() {
               <TarjetaDato icono="🌸" valor={`${cumplidas}/${semanas.length}`} etiqueta="Semanas cumplidas" />
             </View>
 
-            {estaActiva ? (
-              <Boton titulo="Terminar sesión" variante="peligro" onPress={jardin.terminar} />
-            ) : (
-              <View style={estilos.grupo}>
-                <Boton titulo="🌱 Empezar a estudiar" onPress={() => jardin.empezar(materia.id)} />
-                {otraActiva && (
-                  <Texto variante="chico" color={Colores.blancoSuave} style={estilos.centrado}>
-                    Se va a terminar la sesión de {otraActiva.nombre}.
-                  </Texto>
-                )}
-              </View>
-            )}
+            <View style={estilos.grupo}>
+              <Boton titulo="🌱 Empezar a estudiar" vibracion="media" onPress={() => jardin.empezar(materia.id)} />
+              {otraActiva && (
+                <Texto variante="chico" color={Colores.blancoSuave} style={estilos.centrado}>
+                  Se va a terminar la sesión de {otraActiva.nombre}.
+                </Texto>
+              )}
+            </View>
 
             <Panel titulo="¿Te olvidaste del cronómetro?" subtitulo="Sumá el tiempo que estudiaste">
               <View style={estilos.fila}>
@@ -163,6 +167,7 @@ export default function PantallaMateria() {
                     key={atajo.minutos}
                     titulo={atajo.etiqueta}
                     variante="secundario"
+                    vibracion="liviana"
                     style={estilos.botonFila}
                     onPress={() => jardin.agregarTiempo(materia.id, atajo.minutos)}
                   />
@@ -265,6 +270,14 @@ export default function PantallaMateria() {
           </View>
         </View>
       </ScrollView>
+      {sesionTerminada !== null && (
+        <Festejo
+          ms={sesionTerminada}
+          especie={especie.nombre}
+          progreso={progreso}
+          onCerrar={() => setSesionTerminada(null)}
+        />
+      )}
     </View>
   );
 }

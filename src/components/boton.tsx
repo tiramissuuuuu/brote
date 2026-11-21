@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-nat
 
 import { Texto } from '@/components/texto';
 import { Colores } from '@/constants/theme';
+import { vibrar, type Vibracion } from '@/lib/vibrar';
 
 type Variante = 'primario' | 'secundario' | 'peligro' | 'claro';
 
@@ -10,6 +11,8 @@ type Props = {
   onPress: () => void;
   variante?: Variante;
   deshabilitado?: boolean;
+  /** Vibra al apoyar el dedo, como un botón físico. */
+  vibracion?: Exclude<Vibracion, 'exito'>;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -21,12 +24,13 @@ const COLOR_TEXTO: Record<Variante, string> = {
 };
 
 /** Botón "gordito" de dibujito: tiene un borde de abajo más oscuro que le da volumen. */
-export function Boton({ titulo, onPress, variante = 'primario', deshabilitado = false, style }: Props) {
+export function Boton({ titulo, onPress, variante = 'primario', deshabilitado = false, vibracion, style }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: deshabilitado }}
       disabled={deshabilitado}
+      onPressIn={vibracion ? () => vibrar(vibracion) : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         estilos.base,
