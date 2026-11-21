@@ -13,30 +13,43 @@ const CIMA_COLINA = 214;
 type Props = {
   ancho: number;
   alto: number;
+  /** Oscurece todo el fondo (no los árboles de adelante), para el modo foco. */
+  oscuro?: boolean;
+  /**
+   * Alto de la parte dibujada (nubes, colinas y árboles de fondo), apoyada abajo. Si la escena es más
+   * alta, arriba sigue el cielo liso en vez de agrandar el dibujo. Por defecto, toda la escena.
+   */
+  altoDibujo?: number;
+  /** Pasto liso debajo del dibujo, en píxeles (por ejemplo, para poner botones). */
+  pastoAbajo?: number;
   /** Lo que va parado sobre la colina (los árboles). */
   children?: ReactNode;
 };
 
+function escalaDibujo(ancho: number, altoDibujo: number): number {
+  return Math.max(ancho / ANCHO_DIBUJO, altoDibujo / ALTO_DIBUJO);
+}
+
 /** A cuántos píxeles del borde de abajo de la escena se apoyan los árboles. */
-export function alturaSuelo(ancho: number, alto: number): number {
-  const escala = Math.max(ancho / ANCHO_DIBUJO, alto / ALTO_DIBUJO);
-  return Math.max(0, (ALTO_DIBUJO - CIMA_COLINA) * escala - 14);
+export function alturaSuelo(ancho: number, alto: number, altoDibujo = alto, pastoAbajo = 0): number {
+  const escala = escalaDibujo(ancho, altoDibujo);
+  return pastoAbajo + Math.max(0, (ALTO_DIBUJO - CIMA_COLINA) * escala - 14);
 }
 
 /** Cielo con nubes, colinas y árboles de fondo. */
-export function Escena({ ancho, alto, children }: Props) {
-  const suelo = alturaSuelo(ancho, alto);
-  // El dibujo se agranda hasta cubrir toda la escena, centrado y apoyado abajo (se recortan los costados o el cielo).
-  const escala = Math.max(ancho / ANCHO_DIBUJO, alto / ALTO_DIBUJO);
-  const anchoDibujo = ANCHO_DIBUJO * escala;
-  const altoDibujo = ALTO_DIBUJO * escala;
+export function Escena({ ancho, alto, oscuro = false, altoDibujo = alto, pastoAbajo = 0, children }: Props) {
+  const suelo = alturaSuelo(ancho, alto, altoDibujo, pastoAbajo);
+  // El dibujo se agranda hasta cubrir su zona, centrado y apoyado abajo (se recortan los costados o el cielo).
+  const escala = escalaDibujo(ancho, altoDibujo);
+  const anchoSvg = ANCHO_DIBUJO * escala;
+  const altoSvg = ALTO_DIBUJO * escala;
 
   return (
     <View style={[estilos.escena, { height: alto }]}>
       <Svg
-        width={anchoDibujo}
-        height={altoDibujo}
-        style={[estilos.dibujo, { left: (ancho - anchoDibujo) / 2 }]}
+        width={anchoSvg}
+        height={altoSvg}
+        style={[estilos.dibujo, { left: (ancho - anchoSvg) / 2, bottom: pastoAbajo - 1 }]}
         viewBox={`0 0 ${ANCHO_DIBUJO} ${ALTO_DIBUJO}`}>
         <Nube x={60} y={70} s={1} />
         <Nube x={250} y={46} s={1.3} />
@@ -50,6 +63,8 @@ export function Escena({ ancho, alto, children }: Props) {
         <Arbusto x={40} y={244} />
         <Arbusto x={350} y={240} />
       </Svg>
+      {pastoAbajo > 0 && <View style={[estilos.pasto, { height: pastoAbajo }]} />}
+      {oscuro && <View style={estilos.velo} />}
       <View style={[estilos.suelo, { bottom: suelo }]}>{children}</View>
     </View>
   );
@@ -100,10 +115,24 @@ const estilos = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: Colores.cielo,
   },
+  // El dibujo va 1 px más abajo para que no quede una línea entre la escena y el pasto.
   dibujo: {
     position: 'absolute',
-    // 1 px de más hacia abajo para que no quede una línea entre la escena y el pasto de la pantalla.
-    bottom: -1,
+  },
+  pasto: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colores.pasto,
+  },
+  velo: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(11,26,38,0.55)',
   },
   suelo: {
     position: 'absolute',
