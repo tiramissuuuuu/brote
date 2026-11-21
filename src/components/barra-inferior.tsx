@@ -4,21 +4,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
-import { useJardin } from '@/state/jardin';
+import { useEstudiar } from '@/hooks/use-estudiar';
 
-type Seccion = 'jardin' | 'cuenta';
+export type Seccion = 'jardin' | 'cuenta';
 
 /** Barra de abajo: Jardín, el botón redondo de Estudiar en el medio, y Cuenta. */
 export function BarraInferior({ activa: seccionActiva }: { activa: Seccion }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { materias, activa } = useJardin();
-
-  const estudiar = () => {
-    if (activa) router.push({ pathname: '/materia/[id]', params: { id: activa.materiaId } });
-    else if (materias.length > 0) router.push('/estudiar');
-    else router.push('/nueva');
-  };
+  const { estudiar, regando: activa } = useEstudiar();
 
   return (
     <View style={estilos.contenedor} pointerEvents="box-none">

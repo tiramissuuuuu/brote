@@ -27,7 +27,9 @@ export function ModoFoco({ materia, inicio, ahora, progreso, onTerminar }: Props
   const { width, height } = useWindowDimensions();
   const [confirmando, setConfirmando] = useState(false);
 
-  const ancho = Math.min(width, AnchoMaximo);
+  // Ocupa toda la pantalla (también en computadora); textos y botones quedan en una columna angosta.
+  const ancho = width;
+  const margen = Math.max(Espacio.m, (width - AnchoMaximo) / 2);
   const especie = ESPECIES[materia.especie].nombre;
   // El fondo de siempre (sin agrandarlo): arriba se extiende el cielo y abajo queda pasto para el botón.
   const altoDibujo = Math.min(height * 0.6, 440);
@@ -50,7 +52,7 @@ export function ModoFoco({ materia, inicio, ahora, progreso, onTerminar }: Props
           />
         </Escena>
 
-        <View style={[estilos.arriba, { top: insets.top + Espacio.xl + Espacio.m }]}>
+        <View style={[estilos.arriba, { top: insets.top + Espacio.xl + Espacio.m, left: margen, right: margen }]}>
           <Texto variante="subtitulo" color={Colores.blancoSuave} numberOfLines={1}>
             {materia.nombre}
           </Texto>
@@ -62,7 +64,7 @@ export function ModoFoco({ materia, inicio, ahora, progreso, onTerminar }: Props
           </Texto>
         </View>
 
-        <View style={[estilos.abajo, { bottom: insets.bottom + Espacio.l }]}>
+        <View style={[estilos.abajo, { bottom: insets.bottom + Espacio.l, left: margen, right: margen }]}>
           {confirmando ? (
             <View style={estilos.confirmar}>
               <Texto variante="subtitulo" color={Colores.blanco} style={estilos.centrado}>
