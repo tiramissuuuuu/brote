@@ -9,6 +9,11 @@ export type Materia = {
   metaSemanal: number;
   color: string;
   creadaEn: number;
+  /**
+   * Cuándo se sacó del jardín. Las materias "eliminadas" se archivan en vez de borrarse,
+   * para que sus horas sigan contando en las estadísticas del año.
+   */
+  archivadaEn?: number;
 };
 
 export type Sesion = {

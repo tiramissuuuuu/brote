@@ -44,6 +44,7 @@ function normalizarMateria(m: MateriaGuardada): Materia {
     metaSemanal,
     // Las materias de antes de que hubiera especies reciben siempre la misma, según su id.
     especie: esEspecie(m.especie) ? m.especie : especieDesdeTexto(m.id),
+    ...(typeof m.archivadaEn === 'number' ? { archivadaEn: m.archivadaEn } : {}),
   };
 }
 
@@ -95,7 +96,14 @@ function juntar(a: EstadoJardin, b: EstadoJardin, activa: SesionActiva | null, m
       return true;
     });
   };
-  const materias = unir([...a.materias, ...b.materias]).sort((x, y) => x.creadaEn - y.creadaEn);
+  // Si una copia tiene la materia archivada y la otra no, queda archivada (archivar no se deshace).
+  const porId = new Map<string, Materia>();
+  for (const m of [...a.materias, ...b.materias]) {
+    if (borrados.has(m.id)) continue;
+    const previa = porId.get(m.id);
+    porId.set(m.id, previa && !previa.archivadaEn && m.archivadaEn ? { ...previa, archivadaEn: m.archivadaEn } : (previa ?? m));
+  }
+  const materias = [...porId.values()].sort((x, y) => x.creadaEn - y.creadaEn);
   return {
     version: 2,
     materias,
@@ -146,10 +154,14 @@ export type EstadoNube = 'solo-dispositivo' | 'sincronizando' | 'guardado' | 'si
 type DatosMateria = Pick<Materia, 'nombre' | 'metaSemanal' | 'color'>;
 
 type ValorJardin = EstadoJardin & {
+  /** Las materias del jardín (sin las archivadas). Es lo que muestran las pantallas. */
+  materias: Materia[];
+  /** Todas, incluidas las archivadas: para estadísticas (por ejemplo, el resumen del año). */
+  todasLasMaterias: Materia[];
   nube: EstadoNube;
   /** Planta la materia con una especie al azar y la devuelve. */
   agregarMateria: (datos: DatosMateria) => Materia;
-  eliminarMateria: (id: string) => void;
+  archivarMateria: (id: string) => void;
   empezar: (materiaId: string) => void;
   terminar: () => void;
   agregarTiempo: (materiaId: string, minutos: number) => void;
@@ -246,16 +258,18 @@ export function ProveedorJardin({ children }: { children: ReactNode }) {
     return materia;
   };
 
-  const eliminarMateria = (id: string) => {
+  /** La saca del jardín, pero guarda sus sesiones para las estadísticas (si se estaba estudiando, se termina). */
+  const archivarMateria = (id: string) => {
     const ahora = Date.now();
-    setEstado((e) => ({
-      ...e,
-      materias: e.materias.filter((m) => m.id !== id),
-      sesiones: e.sesiones.filter((s) => s.materiaId !== id),
-      activa: e.activa?.materiaId === id ? null : e.activa,
-      borrados: [...e.borrados, id, ...e.sesiones.filter((s) => s.materiaId === id).map((s) => s.id)],
-      modificadoEn: ahora,
-    }));
+    const idSesion = nuevoId();
+    setEstado((e) => {
+      const base = e.activa?.materiaId === id ? cerrarActiva(e, ahora, idSesion) : e;
+      return {
+        ...base,
+        materias: base.materias.map((m) => (m.id === id ? { ...m, archivadaEn: ahora } : m)),
+        modificadoEn: ahora,
+      };
+    });
   };
 
   /** Si había otra materia en curso, se termina esa sesión primero. */
@@ -294,9 +308,11 @@ export function ProveedorJardin({ children }: { children: ReactNode }) {
     <ContextoJardin.Provider
       value={{
         ...estado,
+        materias: estado.materias.filter((m) => !m.archivadaEn),
+        todasLasMaterias: estado.materias,
         nube,
         agregarMateria,
-        eliminarMateria,
+        archivarMateria,
         empezar,
         terminar,
         agregarTiempo,

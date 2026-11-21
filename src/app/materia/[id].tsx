@@ -82,7 +82,7 @@ export default function PantallaMateria() {
 
   const eliminar = () => {
     router.replace('/');
-    jardin.eliminarMateria(materia.id);
+    jardin.archivarMateria(materia.id);
   };
 
   return (
@@ -240,7 +240,10 @@ export default function PantallaMateria() {
             </Panel>
 
             {confirmarEliminar ? (
-              <Panel titulo={`¿Eliminar ${materia.nombre}?`} subtitulo="Se borra el árbol y todo su historial. No se puede deshacer.">
+              <Panel
+                titulo={`¿Eliminar ${materia.nombre}?`}
+                subtitulo="Se saca de tu jardín. Las horas que estudiaste se guardan para tus estadísticas del año.">
+
                 <View style={estilos.fila}>
                   <Boton
                     titulo="Cancelar"
