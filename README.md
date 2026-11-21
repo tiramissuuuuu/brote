@@ -1,56 +1,76 @@
-# Welcome to your Expo app 👋
+# brote 🌱
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Cada materia de la facultad es un árbol: cuanto más estudiás en la semana, más crece.
 
-## Get started
+Hecha con [Expo](https://expo.dev) (React Native), así que el mismo código corre en web, iOS y Android.
 
-1. Install dependencies
+## Cómo correrlo
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Necesitás [Node.js](https://nodejs.org) (versión LTS).
 
 ```bash
-npm run reset-project
+npm install
+npm run web
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Se abre en el navegador en http://localhost:8081.
 
-### Other setup steps
+Para probarla en el celular: instalá **Expo Go** desde la App Store o Google Play, corré `npx expo start` y escaneá el código QR (el celular y la computadora tienen que estar en la misma red Wi‑Fi).
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Sin configurar nada más, la app funciona en **modo invitado** (los datos quedan en el dispositivo). Para las cuentas, seguí los pasos de abajo.
 
-## Learn more
+## Conectar las cuentas (Supabase)
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Creá un proyecto gratis en [supabase.com](https://supabase.com).
+2. En **SQL Editor → New query**, pegá el contenido de [`supabase/esquema.sql`](supabase/esquema.sql) y tocá **Run**. Crea la tabla `jardines` con reglas para que cada usuario vea solo su jardín. Después hacé lo mismo con [`supabase/estadisticas.sql`](supabase/estadisticas.sql) (estadísticas para el resumen del año).
+3. Para probar más rápido: en **Authentication → Sign In / Providers → Email**, desactivá **Confirm email** (si no, cada registro pide confirmar por mail antes de poder entrar).
+4. Copiá `.env.example` como `.env.local` y completá la **Project URL** y la **publishable key** (o *anon key*) que están en **Project Settings → API Keys**. Nunca uses la *secret key* en la app.
+5. Volvé a arrancar `npx expo start` (las variables se leen al arrancar).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Cómo funciona
 
-## Join the community
+- **Árboles de Uruguay:** al plantar una materia te toca uno al azar: ombú, ceibo, jacarandá, butiá o sauce llorón. Elegís el color de las flores o frutos.
+- **Meta semanal:** elegís cuántas horas por semana le querés dedicar (de referencia, en la UdelaR 1 crédito ≈ 1 hora por semana, contando las clases).
+- **El árbol crece** según las horas de la semana actual sobre la meta: semilla → brote → árbol que va creciendo → flores o frutos → ¡florecido! Cada lunes vuelve a la semilla.
+- **Semana a semana:** en cada materia se ven las semanas anteriores con sus horas y si se cumplió la meta.
+- **Racha 🔥:** días seguidos con al menos un minuto de estudio.
+- **El cronómetro guarda la hora de inicio**, no un contador, así no se pierde tiempo si se cierra la app o se recarga la página.
+- **Estadísticas para el resumen del año:** eliminar una materia la saca del jardín pero guarda sus horas (queda archivada). En Supabase, las tablas `materias` y `sesiones` se llenan solas desde el jardín de cada usuario, y las vistas `estadisticas_materias_por_anio` y `estadisticas_usuario_por_anio` dan las horas por materia y los totales de cada año. Los invitados tienen sus datos solo en el dispositivo.
+- **Cuentas e invitado:** como invitado, los datos quedan en el dispositivo (localStorage en web, SQLite en el celular). Con cuenta, además se guardan en Supabase. Si creás una cuenta o entrás después de usar la app como invitado, tus árboles se pasan a la cuenta. Si estuviste sin conexión, gana la versión más nueva.
 
-Join our community of developers creating universal apps.
+## Estructura
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/
+  app/                    Pantallas (Expo Router: cada archivo es una ruta)
+    _layout.tsx           Tipografía, proveedores y navegación
+    index.tsx             El jardín: todos los árboles, progreso de la semana y materias
+    materia/[id].tsx      Una materia: su árbol, el cronómetro y el historial
+    nueva.tsx             Plantar una materia
+    estudiar.tsx          Elegir qué estudiar (botón del medio)
+    bienvenida.tsx        Primera pantalla: crear cuenta, entrar o invitado
+    entrar.tsx, registro.tsx, cuenta.tsx
+  components/
+    arbol.tsx             Los 5 árboles (SVG), según la especie y el progreso
+    escena.tsx            Cielo, nubes y colinas de fondo
+    barra-inferior.tsx    Barra de abajo con el botón de Estudiar
+    texto.tsx, boton.tsx, campo.tsx, panel.tsx, tarjeta-dato.tsx, fila-materia.tsx, ...
+  lib/
+    brote.ts              Tipos y cálculos (semanas, progreso, racha, formatos)
+    especies.ts           Las especies de árboles
+    almacenamiento.ts     Guardar datos en iOS/Android (y .web.ts para web)
+    supabase.ts, nube.ts  Conexión con Supabase
+  state/
+    cuenta.tsx            Sesión: entrar, registrarse, invitado, salir
+    jardin.tsx            Materias, sesiones y sincronización con la nube
+  hooks/use-ahora.ts      Reloj que se actualiza solo
+supabase/esquema.sql      Tabla del jardín y reglas de seguridad
+supabase/estadisticas.sql Tablas y vistas de estadísticas (correr después de esquema.sql)
+```
+
+## Antes de subir cambios
+
+```bash
+npx tsc --noEmit
+npx expo lint
+```

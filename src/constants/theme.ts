@@ -1,65 +1,45 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
-
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+export const Colores = {
+  cielo: '#9AD7F3',
+  nube: '#FFFFFF',
+  colinaLejos: '#6CC48F',
+  /** Fondo de la parte de abajo de las pantallas (el pasto de la colina). */
+  pasto: '#4FA673',
+  /** Tarjetas de datos sobre el pasto. */
+  pastoOscuro: '#3F9163',
+  /** Paneles de listas. */
+  panel: '#38845A',
+  barraInferior: '#2F7550',
+  arbolFondo: '#2E7A55',
+  arbolFondoLuz: '#3D9466',
+  /** Texto oscuro (títulos sobre el cielo, números grandes). */
+  tinta: '#1D2B22',
+  blanco: '#FFFFFF',
+  blancoSuave: 'rgba(255,255,255,0.78)',
+  amarillo: '#FFC83D',
+  amarilloOscuro: '#D9A21B',
+  /** Fondo de las barras de progreso. */
+  pista: 'rgba(255,255,255,0.35)',
+  peligro: '#E5484D',
+  peligroOscuro: '#B8383C',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+/** Colores de flores o frutos para elegir al crear una materia. */
+export const ColoresFlor = ['#E63946', '#9B5DE5', '#F4A261', '#F15BB5', '#FFD166', '#4CC9F0'] as const;
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+/** Fredoka: tipografía redonda, estilo dibujito. Se carga en src/app/_layout.tsx. */
+export const Fuentes = {
+  normal: 'Fredoka_500Medium',
+  semi: 'Fredoka_600SemiBold',
+  negrita: 'Fredoka_700Bold',
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const Espacio = {
+  xs: 4,
+  s: 8,
+  m: 16,
+  l: 24,
+  xl: 32,
+} as const;
+
+/** Ancho máximo del contenido (en web, para que se vea como en el celular). */
+export const AnchoMaximo = 560;
