@@ -30,11 +30,9 @@ const PASOS = [
 ];
 
 const FUNCIONES = [
-  { icono: '🌳', titulo: 'Árboles de Uruguay', texto: 'Ombú, ceibo, jacarandá, butiá o sauce llorón: te toca uno al azar por materia.' },
   { icono: '🎯', titulo: 'Meta semanal', texto: 'Ponele a cada materia sus horas por semana y seguí tu avance con una barra.' },
   { icono: '💧', titulo: 'Modo foco', texto: 'Mientras estudiás, solo el cronómetro y tu árbol. Al terminar, confeti.' },
   { icono: '📅', titulo: 'Semana a semana', texto: 'Mirá cuántas horas le dedicaste a cada materia en las semanas anteriores.' },
-  { icono: '🔥', titulo: 'Racha', texto: 'Los días seguidos que estudiaste, para no cortar el ritmo.' },
   { icono: '☁️', titulo: 'Tu jardín en la nube', texto: 'Con una cuenta lo tenés en el celular y en la compu. También podés usarla sin cuenta.' },
 ];
 

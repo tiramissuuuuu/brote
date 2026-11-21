@@ -118,9 +118,11 @@ export default function PantallaMateria() {
           tamano={tamanoArbol}
         />
       </Escena>
-      <View style={estilos.encabezado}>
-        <Encabezado titulo={materia.nombre} />
-      </View>
+      {!escritorio && (
+        <View style={estilos.encabezado}>
+          <Encabezado titulo={materia.nombre} />
+        </View>
+      )}
     </View>
   );
 
@@ -285,13 +287,16 @@ export default function PantallaMateria() {
   );
 
   if (escritorio) {
-    // Computadora: el árbol a la izquierda (fijo, de alto completo) y el resto a la derecha.
+    // Computadora: el panel con la información a la izquierda y el árbol a la derecha (fijo, de alto completo).
     return (
       <View style={[estilos.pantalla, estilos.dosColumnas]}>
-        {escena}
-        <ScrollView style={estilos.columnaDerecha} contentContainerStyle={estilos.contenidoEscritorio}>
-          <View style={estilos.anchoLectura}>{cuerpo}</View>
+        <ScrollView style={estilos.columnaPanel} contentContainerStyle={estilos.contenidoEscritorio}>
+          <View style={estilos.anchoLectura}>
+            <Encabezado titulo={materia.nombre} claro />
+            {cuerpo}
+          </View>
         </ScrollView>
+        {escena}
         {festejo}
       </View>
     );
@@ -321,12 +326,12 @@ const estilos = StyleSheet.create({
   dosColumnas: {
     flexDirection: 'row',
   },
-  columnaDerecha: {
+  columnaPanel: {
     flex: 1,
   },
   contenidoEscritorio: {
     alignItems: 'center',
-    paddingVertical: Espacio.xl,
+    paddingBottom: Espacio.xl,
   },
   anchoLectura: {
     width: '100%',

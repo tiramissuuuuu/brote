@@ -33,7 +33,7 @@ export default function NuevaMateria() {
       <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
         <View style={estilos.columna}>
           <Texto color={Colores.blancoSuave}>
-            Te va a tocar uno de estos árboles al azar: ombú, ceibo, jacarandá, butiá o sauce llorón. 🌳
+            Te va a tocar un árbol uruguayo al azar! 🌳
           </Texto>
 
           <Campo
