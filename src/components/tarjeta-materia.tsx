@@ -14,13 +14,13 @@ type Props = {
 };
 
 export function TarjetaMateria({ materia, ms, activa, ancho, onPress }: Props) {
-  const progreso = calcularProgreso(ms, materia.metaHoras);
+  const progreso = calcularProgreso(ms, materia.metaSemanal);
   const etapa = nombreEtapa(progreso);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${materia.nombre}: ${etapa}, ${formatoHoras(ms)} de ${materia.metaHoras} horas`}
+      accessibilityLabel={`${materia.nombre}: ${etapa}, ${formatoHoras(ms)} de ${materia.metaSemanal} horas esta semana`}
       onPress={onPress}
       style={({ pressed }) => [
         estilos.tarjeta,
@@ -39,7 +39,7 @@ export function TarjetaMateria({ materia, ms, activa, ancho, onPress }: Props) {
       </Text>
       <BarraProgreso progreso={progreso} color={materia.color} />
       <Text style={estilos.horas}>
-        {formatoHoras(ms)} de {materia.metaHoras} h
+        {formatoHoras(ms)} de {materia.metaSemanal} h
       </Text>
     </Pressable>
   );

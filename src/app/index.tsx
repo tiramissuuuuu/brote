@@ -8,7 +8,7 @@ import { Planta } from '@/components/planta';
 import { TarjetaMateria } from '@/components/tarjeta-materia';
 import { AnchoMaximo, Colores, ColoresFlor, Espacio } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
-import { formatoHoras, formatoReloj, msEstudiados } from '@/lib/brote';
+import { formatoHoras, formatoReloj, formatoSemana, inicioSemana, msEstaSemana } from '@/lib/brote';
 import { useJardin } from '@/state/jardin';
 
 const SEPARACION = 12;
@@ -27,7 +27,7 @@ export default function Jardin() {
   const anchoTarjeta = Math.floor((anchoUtil - SEPARACION * (columnas - 1)) / columnas);
 
   const materiaActiva = activa ? materias.find((m) => m.id === activa.materiaId) : undefined;
-  const totalMs = materias.reduce((suma, m) => suma + msEstudiados(m.id, sesiones, activa, ahora), 0);
+  const totalSemanaMs = materias.reduce((suma, m) => suma + msEstaSemana(m.id, sesiones, activa, ahora), 0);
 
   const abrirMateria = (id: string) => router.push({ pathname: '/materia/[id]', params: { id } });
 
@@ -45,7 +45,7 @@ export default function Jardin() {
           <Text style={estilos.subtitulo}>
             {materias.length === 0
               ? 'Cada materia es una planta. Cuanto más estudiás, más crece.'
-              : `${materias.length} ${materias.length === 1 ? 'materia' : 'materias'} · ${formatoHoras(totalMs)} de estudio`}
+              : `Semana del ${formatoSemana(inicioSemana(ahora))} · ${formatoHoras(totalSemanaMs)} de estudio`}
           </Text>
         </View>
 
@@ -74,7 +74,7 @@ export default function Jardin() {
               <TarjetaMateria
                 key={m.id}
                 materia={m}
-                ms={msEstudiados(m.id, sesiones, activa, ahora)}
+                ms={msEstaSemana(m.id, sesiones, activa, ahora)}
                 activa={activa?.materiaId === m.id}
                 ancho={anchoTarjeta}
                 onPress={() => abrirMateria(m.id)}

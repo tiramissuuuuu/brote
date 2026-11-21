@@ -1,20 +1,41 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { guardar, leer } from '@/lib/almacenamiento';
-import { nuevoId, SESION_MINIMA_MS, type EstadoJardin, type Materia } from '@/lib/brote';
+import {
+  nuevoId,
+  SESION_MINIMA_MS,
+  type EstadoJardin,
+  type Materia,
+  type Sesion,
+  type SesionActiva,
+} from '@/lib/brote';
 
 const CLAVE = 'brote:jardin:v1';
-const VACIO: EstadoJardin = { version: 1, materias: [], sesiones: [], activa: null };
+const VACIO: EstadoJardin = { version: 2, materias: [], sesiones: [], activa: null };
+
+/** Formato viejo (versión 1): meta de horas para todo el semestre, calculada con créditos × 15. */
+type MateriaV1 = Omit<Materia, 'metaSemanal'> & { creditos?: number; metaHoras?: number };
+
+/** Pasa una materia del formato viejo al nuevo: más o menos 1 hora por semana por crédito. */
+function migrarMateria({ creditos, metaHoras, ...resto }: MateriaV1): Materia {
+  const metaSemanal = creditos && creditos > 0 ? creditos : Math.max(1, Math.round((metaHoras ?? 15) / 15));
+  return { ...resto, metaSemanal };
+}
 
 function cargar(): EstadoJardin {
   const crudo = leer(CLAVE);
   if (!crudo) return VACIO;
   try {
-    const datos = JSON.parse(crudo) as Partial<EstadoJardin>;
-    if (datos.version !== 1) return VACIO;
+    const datos = JSON.parse(crudo) as {
+      version?: number;
+      materias?: (Materia | MateriaV1)[];
+      sesiones?: Sesion[];
+      activa?: SesionActiva | null;
+    };
+    if (datos.version !== 1 && datos.version !== 2) return VACIO;
     return {
-      version: 1,
-      materias: datos.materias ?? [],
+      version: 2,
+      materias: (datos.materias ?? []).map((m) => ('metaSemanal' in m ? m : migrarMateria(m))),
       sesiones: datos.sesiones ?? [],
       activa: datos.activa ?? null,
     };
@@ -34,7 +55,7 @@ function cerrarActiva(estado: EstadoJardin, ahora: number, id: string): EstadoJa
   return { ...estado, sesiones, activa: null };
 }
 
-type DatosMateria = Pick<Materia, 'nombre' | 'creditos' | 'metaHoras' | 'color'>;
+type DatosMateria = Pick<Materia, 'nombre' | 'metaSemanal' | 'color'>;
 
 type ValorJardin = EstadoJardin & {
   agregarMateria: (datos: DatosMateria) => string;

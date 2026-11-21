@@ -12,7 +12,8 @@ import {
   formatoFecha,
   formatoHoras,
   formatoReloj,
-  msEstudiados,
+  formatoSemana,
+  historialSemanal,
   nombreEtapa,
 } from '@/lib/brote';
 import { useJardin } from '@/state/jardin';
@@ -24,6 +25,12 @@ const ATAJOS = [
 ];
 
 const SESIONES_VISIBLES = 20;
+
+function nombreSemana(indice: number, inicio: number): string {
+  if (indice === 0) return 'Esta semana';
+  if (indice === 1) return 'Semana pasada';
+  return formatoSemana(inicio);
+}
 
 export default function PantallaMateria() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,8 +61,12 @@ export default function PantallaMateria() {
   const { activa } = jardin;
   const estaActiva = activa?.materiaId === materia.id;
   const otraActiva = activa && !estaActiva ? jardin.materias.find((m) => m.id === activa.materiaId) : undefined;
-  const ms = msEstudiados(materia.id, jardin.sesiones, activa, ahora);
-  const progreso = calcularProgreso(ms, materia.metaHoras);
+
+  const semanas = historialSemanal(materia, jardin.sesiones, activa, ahora);
+  const msSemana = semanas[0].ms;
+  const progreso = calcularProgreso(msSemana, materia.metaSemanal);
+  const semanasCumplidas = semanas.filter((s) => calcularProgreso(s.ms, materia.metaSemanal) >= 1).length;
+
   const sesiones = jardin.sesiones
     .filter((s) => s.materiaId === materia.id)
     .sort((a, b) => b.inicio - a.inicio);
@@ -83,7 +94,7 @@ export default function PantallaMateria() {
           <Planta progreso={progreso} color={materia.color} semilla={materia.id} tamano={tamanoPlanta} />
           <Text style={estilos.etapa}>{nombreEtapa(progreso)}</Text>
           <Text style={estilos.textoSuave}>
-            {formatoHoras(ms)} de {materia.metaHoras} h · {Math.floor(progreso * 100)}%
+            {formatoHoras(msSemana)} de {materia.metaSemanal} h esta semana · {Math.floor(progreso * 100)}%
           </Text>
           <View style={estilos.barra}>
             <BarraProgreso progreso={progreso} color={materia.color} />
@@ -125,7 +136,35 @@ export default function PantallaMateria() {
         </View>
 
         <View style={estilos.tarjeta}>
-          <Text style={estilos.seccion}>Historial</Text>
+          <View>
+            <Text style={estilos.seccion}>Semana a semana</Text>
+            <Text style={estilos.textoSuave}>
+              Meta: {materia.metaSemanal} h por semana · Cumpliste la meta en {semanasCumplidas} de{' '}
+              {semanas.length} {semanas.length === 1 ? 'semana' : 'semanas'}
+            </Text>
+          </View>
+          {semanas.map((semana, i) => {
+            const p = calcularProgreso(semana.ms, materia.metaSemanal);
+            return (
+              <View key={semana.inicio} style={estilos.semana}>
+                <Planta progreso={p} color={materia.color} semilla={materia.id} tamano={40} />
+                <View style={estilos.semanaDatos}>
+                  <View style={estilos.semanaTitulo}>
+                    <Text style={[estilos.texto, i === 0 && estilos.negrita]}>{nombreSemana(i, semana.inicio)}</Text>
+                    <Text style={estilos.texto}>
+                      {p >= 1 ? '🌸 ' : ''}
+                      {formatoHoras(semana.ms)}
+                    </Text>
+                  </View>
+                  <BarraProgreso progreso={p} color={materia.color} />
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={estilos.tarjeta}>
+          <Text style={estilos.seccion}>Sesiones recientes</Text>
           {sesiones.length === 0 ? (
             <Text style={estilos.textoSuave}>Todavía no hay sesiones.</Text>
           ) : (
@@ -259,6 +298,23 @@ const estilos = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Espacio.s,
   },
+  semana: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Espacio.m - 4,
+    paddingTop: Espacio.xs,
+    borderTopWidth: 1,
+    borderTopColor: Colores.borde,
+  },
+  semanaDatos: {
+    flex: 1,
+    gap: Espacio.s,
+  },
+  semanaTitulo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Espacio.s,
+  },
   sesion: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -273,6 +329,9 @@ const estilos = StyleSheet.create({
   texto: {
     color: Colores.texto,
     fontSize: 15,
+  },
+  negrita: {
+    fontWeight: '700',
   },
   textoSuave: {
     color: Colores.textoSuave,

@@ -19,8 +19,9 @@ Para probarla en el celular: instalá **Expo Go** desde la App Store o Google Pl
 
 ## Cómo funciona
 
-- **Meta de horas:** créditos × 15, porque en la UdelaR 1 crédito equivale a 15 horas de trabajo (clases y estudio). Se puede cambiar al crear la materia.
-- **La planta crece** según horas estudiadas / meta: semilla → brote → plantita → planta joven → arbolito → en flor → ¡florecida!
+- **Meta semanal:** al crear la materia elegís cuántas horas por semana le querés dedicar (de referencia, en la UdelaR 1 crédito ≈ 1 hora por semana, contando las clases).
+- **La planta crece** según las horas de la semana actual sobre la meta: semilla → brote → plantita → planta joven → arbolito → en flor → ¡florecida! Cada lunes vuelve a la semilla.
+- **Semana a semana:** en cada materia se ven las semanas anteriores con sus horas y si se cumplió la meta.
 - **El cronómetro guarda la hora de inicio**, no un contador, así no se pierde tiempo si se cierra la app o se recarga la página.
 - **Los datos quedan en el dispositivo** (localStorage del navegador en web, SQLite en el celular). Todavía no hay cuentas ni servidor.
 

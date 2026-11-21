@@ -4,7 +4,6 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import { Boton } from '@/components/boton';
 import { AnchoMaximo, Colores, ColoresFlor, Espacio } from '@/constants/theme';
-import { HORAS_POR_CREDITO } from '@/lib/brote';
 import { useJardin } from '@/state/jardin';
 
 const soloDigitos = (texto: string) => texto.replace(/[^0-9]/g, '');
@@ -13,15 +12,11 @@ export default function NuevaMateria() {
   const router = useRouter();
   const { agregarMateria, materias } = useJardin();
   const [nombre, setNombre] = useState('');
-  const [creditos, setCreditos] = useState('');
-  const [meta, setMeta] = useState('');
-  const [metaEditada, setMetaEditada] = useState(false);
+  const [horas, setHoras] = useState('');
   const [color, setColor] = useState<string>(ColoresFlor[materias.length % ColoresFlor.length]);
 
-  const creditosNum = Number.parseInt(creditos, 10);
-  const metaSugerida = creditosNum > 0 ? creditosNum * HORAS_POR_CREDITO : 0;
-  const metaNum = metaEditada ? Number.parseInt(meta, 10) : metaSugerida;
-  const valido = nombre.trim().length > 0 && metaNum > 0;
+  const horasNum = Number.parseInt(horas, 10);
+  const valido = nombre.trim().length > 0 && horasNum > 0;
 
   const cerrar = () => {
     if (router.canGoBack()) router.back();
@@ -30,12 +25,7 @@ export default function NuevaMateria() {
 
   const plantar = () => {
     if (!valido) return;
-    agregarMateria({
-      nombre: nombre.trim(),
-      creditos: creditosNum > 0 ? creditosNum : 0,
-      metaHoras: metaNum,
-      color,
-    });
+    agregarMateria({ nombre: nombre.trim(), metaSemanal: horasNum, color });
     cerrar();
   };
 
@@ -60,35 +50,20 @@ export default function NuevaMateria() {
         </View>
 
         <View style={estilos.campo}>
-          <Text style={estilos.etiqueta}>Créditos</Text>
+          <Text style={estilos.etiqueta}>Horas por semana</Text>
           <TextInput
-            value={creditos}
-            onChangeText={(t) => setCreditos(soloDigitos(t))}
-            placeholder="Ej.: 10"
+            value={horas}
+            onChangeText={(t) => setHoras(soloDigitos(t))}
+            placeholder="Ej.: 8"
             placeholderTextColor={Colores.textoSuave}
             style={estilos.entrada}
             keyboardType="number-pad"
-            maxLength={3}
-          />
-        </View>
-
-        <View style={estilos.campo}>
-          <Text style={estilos.etiqueta}>Horas para que florezca</Text>
-          <TextInput
-            value={metaEditada ? meta : metaSugerida > 0 ? String(metaSugerida) : ''}
-            onChangeText={(t) => {
-              setMetaEditada(true);
-              setMeta(soloDigitos(t));
-            }}
-            placeholder="Ej.: 150"
-            placeholderTextColor={Colores.textoSuave}
-            style={estilos.entrada}
-            keyboardType="number-pad"
-            maxLength={4}
+            maxLength={2}
           />
           <Text style={estilos.ayuda}>
-            En la UdelaR, 1 crédito equivale a {HORAS_POR_CREDITO} horas de trabajo (clases y estudio). Lo
-            usamos como meta, pero podés cambiarla.
+            Cuando llegues a estas horas en la semana, la planta florece. Cada lunes vuelve a empezar desde
+            la semilla. De referencia: en la UdelaR cada crédito equivale a 15 horas de trabajo en el
+            semestre, más o menos 1 hora por semana (contando las clases).
           </Text>
         </View>
 
