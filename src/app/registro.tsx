@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { Boton } from '@/components/boton';
@@ -8,10 +8,12 @@ import { Encabezado } from '@/components/encabezado';
 import { Panel } from '@/components/panel';
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
+import { emailRegistrado } from '@/lib/nube';
 import { useCuenta } from '@/state/cuenta';
 import { useJardin } from '@/state/jardin';
 
 const LARGO_MINIMO = 6;
+const pareceEmail = (texto: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto.trim());
 
 export default function Registro() {
   const router = useRouter();
@@ -23,11 +25,31 @@ export default function Registro() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  // Resultado de preguntarle a Supabase si el email ya tiene cuenta (para el email escrito en ese momento).
+  const [chequeo, setChequeo] = useState<{ email: string; registrado: boolean } | null>(null);
+
+  // "AJAX": medio segundo después de que dejás de escribir, se consulta en segundo plano si el email existe.
+  useEffect(() => {
+    const limpio = email.trim().toLowerCase();
+    if (!pareceEmail(limpio)) return;
+    let vigente = true;
+    const espera = setTimeout(async () => {
+      const registrado = await emailRegistrado(limpio);
+      // Si mientras tanto cambiaste el email, esta respuesta ya no sirve.
+      if (vigente && registrado !== null) setChequeo({ email: limpio, registrado });
+    }, 500);
+    return () => {
+      vigente = false;
+      clearTimeout(espera);
+    };
+  }, [email]);
 
   // Cuando la cuenta queda creada (y con sesión iniciada), se vuelve al jardín.
   if (estado === 'conectado') return <Redirect href="/" />;
 
-  const valido = nombre.trim().length > 0 && email.includes('@') && contrasena.length >= LARGO_MINIMO;
+  const emailOcupado = chequeo !== null && chequeo.registrado && chequeo.email === email.trim().toLowerCase();
+  const valido =
+    nombre.trim().length > 0 && pareceEmail(email) && contrasena.length >= LARGO_MINIMO && !emailOcupado;
 
   const enviar = async () => {
     if (!valido || enviando) return;
@@ -78,6 +100,7 @@ export default function Registro() {
                 autoCapitalize="none"
                 autoComplete="email"
                 textContentType="emailAddress"
+                error={emailOcupado ? 'Ya hay una cuenta con este email. ¿Querés entrar?' : null}
               />
               <Campo
                 etiqueta="Contraseña"
