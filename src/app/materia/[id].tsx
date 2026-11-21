@@ -290,7 +290,11 @@ export default function PantallaMateria() {
     // Computadora: el panel con la información a la izquierda y el árbol a la derecha (fijo, de alto completo).
     return (
       <View style={[estilos.pantalla, estilos.dosColumnas]}>
-        <ScrollView style={estilos.columnaPanel} contentContainerStyle={estilos.contenidoEscritorio}>
+        <ScrollView
+          style={estilos.columnaPanel}
+          contentContainerStyle={estilos.contenidoEscritorio}
+          // Sin barra de scroll: quedaba en el medio de la pantalla. Se sigue pudiendo scrollear.
+          showsVerticalScrollIndicator={false}>
           <View style={estilos.anchoLectura}>
             <Encabezado titulo={materia.nombre} claro />
             {cuerpo}
