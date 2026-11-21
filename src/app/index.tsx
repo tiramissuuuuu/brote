@@ -7,6 +7,7 @@ import { BarraProgreso } from '@/components/barra-progreso';
 import { Boton } from '@/components/boton';
 import { alturaColinaLejana, alturaSuelo, Escena } from '@/components/escena';
 import { FilaMateria } from '@/components/fila-materia';
+import { Logo } from '@/components/logo';
 import { Marco } from '@/components/marco';
 import { Panel } from '@/components/panel';
 import { TarjetaDato } from '@/components/tarjeta-dato';
@@ -143,7 +144,7 @@ export default function Jardin() {
               />
             </Escena>
             <View style={[estilos.encabezado, { top: (escritorio ? 0 : insets.top) + Espacio.s }]}>
-              <Texto variante="marca">{escritorio ? 'Tu jardín' : 'Brote'}</Texto>
+              {escritorio ? <Texto variante="marca">Tu jardín</Texto> : <Logo />}
               <Racha dias={racha} />
             </View>
           </View>

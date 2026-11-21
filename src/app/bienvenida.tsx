@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Arbol } from '@/components/arbol';
 import { Boton } from '@/components/boton';
 import { Escena } from '@/components/escena';
+import { Logo } from '@/components/logo';
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
 import { ANCHO_ESCRITORIO } from '@/hooks/use-disposicion';
@@ -34,9 +35,7 @@ export default function Bienvenida() {
         </View>
       </Escena>
       <View style={[estilos.marca, { top: (escritorio ? Espacio.xl : insets.top) + Espacio.l }]}>
-        <Texto variante="marca" style={estilos.titulo}>
-          Brote
-        </Texto>
+        <Logo style={estilos.titulo} />
       </View>
     </View>
   );

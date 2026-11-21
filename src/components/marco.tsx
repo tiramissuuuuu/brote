@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { BarraInferior, type Seccion } from '@/components/barra-inferior';
+import { Logo } from '@/components/logo';
 import { Texto } from '@/components/texto';
 import { Colores, Espacio } from '@/constants/theme';
 import { ANCHO_LATERAL, useDisposicion } from '@/hooks/use-disposicion';
@@ -38,9 +39,7 @@ function BarraLateral({ seccion }: { seccion: Seccion }) {
 
   return (
     <View style={estilos.lateral}>
-      <Texto variante="marca" color={Colores.blanco} style={estilos.marca}>
-        🌱 Brote
-      </Texto>
+      <Logo conIcono color={Colores.blanco} style={estilos.marca} />
 
       <Pressable
         accessibilityRole="button"

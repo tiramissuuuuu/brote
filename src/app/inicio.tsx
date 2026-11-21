@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Arbol } from '@/components/arbol';
 import { Boton } from '@/components/boton';
 import { Escena } from '@/components/escena';
+import { Logo } from '@/components/logo';
 import { Texto } from '@/components/texto';
 import { Colores, Espacio } from '@/constants/theme';
 import { useDisposicion } from '@/hooks/use-disposicion';
@@ -78,7 +79,7 @@ export default function Inicio() {
 
         <View style={[estilos.barra, { top: insets.top + Espacio.m }]}>
           <View style={[estilos.barraInterna, { maxWidth: ANCHO_SECCION }]}>
-            <Texto variante="marca">🌱 Brote</Texto>
+            <Logo conIcono />
             <View style={estilos.fila}>
               {!yaUsa && (
                 <Boton titulo="Entrar" variante="claro" onPress={() => router.push('/entrar')} style={estilos.botonChico} />
