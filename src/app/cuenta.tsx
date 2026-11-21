@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BarraInferior } from '@/components/barra-inferior';
 import { Boton } from '@/components/boton';
+import { Marco } from '@/components/marco';
 import { Panel } from '@/components/panel';
 import { TarjetaDato } from '@/components/tarjeta-dato';
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
+import { useDisposicion } from '@/hooks/use-disposicion';
 import { formatoDuracion } from '@/lib/brote';
 import { useCuenta } from '@/state/cuenta';
 import { useJardin, type EstadoNube } from '@/state/jardin';
@@ -23,6 +24,7 @@ const TEXTO_NUBE: Record<EstadoNube, string> = {
 export default function Cuenta() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { escritorio } = useDisposicion();
   const { estado, usuario, nubeDisponible, salir } = useCuenta();
   const { materias, sesiones, nube } = useJardin();
   const [saliendo, setSaliendo] = useState(false);
@@ -40,11 +42,14 @@ export default function Cuenta() {
   };
 
   return (
-    <View style={estilos.pantalla}>
+    <Marco seccion="cuenta">
       <ScrollView
         contentContainerStyle={[
           estilos.contenido,
-          { paddingTop: insets.top + Espacio.m, paddingBottom: insets.bottom + 130 },
+          {
+            paddingTop: (escritorio ? Espacio.l : insets.top) + Espacio.m,
+            paddingBottom: escritorio ? Espacio.xl : insets.bottom + 130,
+          },
         ]}>
         <View style={estilos.columna}>
           <Texto variante="marca" color={Colores.blanco}>
@@ -105,8 +110,7 @@ export default function Cuenta() {
           )}
         </View>
       </ScrollView>
-      <BarraInferior activa="cuenta" />
-    </View>
+    </Marco>
   );
 }
 

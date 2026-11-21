@@ -4,11 +4,13 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import { Colores } from '@/constants/theme';
 
-// El dibujo de fondo mide 400 × 300 y se escala para cubrir la escena, alineado abajo.
+// El dibujo de fondo mide 400 × 300 (más ancho en pantallas anchas) y va apoyado abajo.
 const ANCHO_DIBUJO = 400;
 const ALTO_DIBUJO = 300;
 /** Altura (en el dibujo) de la cima de la colina de adelante, donde se apoyan los árboles. */
 const CIMA_COLINA = 214;
+/** Altura (en el dibujo) de la colina del fondo, en el centro. */
+const CIMA_COLINA_LEJANA = 178;
 
 type Props = {
   ancho: number;
@@ -26,42 +28,68 @@ type Props = {
   children?: ReactNode;
 };
 
-function escalaDibujo(ancho: number, altoDibujo: number): number {
-  return Math.max(ancho / ANCHO_DIBUJO, altoDibujo / ALTO_DIBUJO);
+/**
+ * Ancho (en unidades del dibujo) de lo que se ve. En pantallas anchas el dibujo se hace más ancho
+ * (las colinas se estiran y las nubes y árboles de fondo se repiten) en vez de agrandarse.
+ */
+function anchoVista(ancho: number, altoDibujo: number): number {
+  return Math.max(ANCHO_DIBUJO, (ALTO_DIBUJO * ancho) / Math.max(1, altoDibujo));
 }
 
 /** A cuántos píxeles del borde de abajo de la escena se apoyan los árboles. */
 export function alturaSuelo(ancho: number, alto: number, altoDibujo = alto, pastoAbajo = 0): number {
-  const escala = escalaDibujo(ancho, altoDibujo);
+  const escala = ancho / anchoVista(ancho, altoDibujo);
   return pastoAbajo + Math.max(0, (ALTO_DIBUJO - CIMA_COLINA) * escala - 14);
+}
+
+/** Cuántos píxeles más arriba que la colina de adelante está la colina del fondo (para una segunda fila de árboles). */
+export function alturaColinaLejana(ancho: number, alto: number, altoDibujo = alto): number {
+  const escala = ancho / anchoVista(ancho, altoDibujo);
+  return (CIMA_COLINA - CIMA_COLINA_LEJANA) * escala;
 }
 
 /** Cielo con nubes, colinas y árboles de fondo. */
 export function Escena({ ancho, alto, oscuro = false, altoDibujo = alto, pastoAbajo = 0, children }: Props) {
   const suelo = alturaSuelo(ancho, alto, altoDibujo, pastoAbajo);
-  // El dibujo se agranda hasta cubrir su zona, centrado y apoyado abajo (se recortan los costados o el cielo).
-  const escala = escalaDibujo(ancho, altoDibujo);
-  const anchoSvg = ANCHO_DIBUJO * escala;
-  const altoSvg = ALTO_DIBUJO * escala;
+  const w = anchoVista(ancho, altoDibujo);
+  const escala = ancho / w;
+  // Las nubes, árboles de fondo y arbustos vienen en "baldosas" de 400 de ancho, centradas y repetidas.
+  const centro = (w - ANCHO_DIBUJO) / 2;
+  const baldosas: number[] = [];
+  for (let x = centro - ANCHO_DIBUJO * Math.ceil(centro / ANCHO_DIBUJO); x < w; x += ANCHO_DIBUJO) {
+    baldosas.push(x);
+  }
 
   return (
     <View style={[estilos.escena, { height: alto }]}>
       <Svg
-        width={anchoSvg}
-        height={altoSvg}
-        style={[estilos.dibujo, { left: (ancho - anchoSvg) / 2, bottom: pastoAbajo - 1 }]}
-        viewBox={`0 0 ${ANCHO_DIBUJO} ${ALTO_DIBUJO}`}>
-        <Nube x={60} y={70} s={1} />
-        <Nube x={250} y={46} s={1.3} />
-        <Nube x={330} y={110} s={0.7} />
-        <Path d="M0 190 Q100 150 200 176 T400 166 V300 H0 Z" fill={Colores.colinaLejos} />
-        <ArbolDeFondo x={34} y={182} s={1.1} />
-        <ArbolDeFondo x={78} y={174} s={0.8} />
-        <ArbolDeFondo x={330} y={170} s={1.2} />
-        <ArbolDeFondo x={376} y={176} s={0.9} />
-        <Path d="M0 236 Q200 194 400 236 V300 H0 Z" fill={Colores.pasto} />
-        <Arbusto x={40} y={244} />
-        <Arbusto x={350} y={240} />
+        width={ancho}
+        height={ALTO_DIBUJO * escala}
+        style={[estilos.dibujo, { left: 0, bottom: pastoAbajo - 1 }]}
+        viewBox={`0 0 ${w} ${ALTO_DIBUJO}`}>
+        {baldosas.map((x) => (
+          <G key={`n${x}`} transform={`translate(${x}, 0)`}>
+            <Nube x={60} y={70} s={1} />
+            <Nube x={250} y={46} s={1.3} />
+            <Nube x={330} y={110} s={0.7} />
+          </G>
+        ))}
+        <Path d={`M0 190 Q${w * 0.25} 150 ${w * 0.5} 176 T${w} 166 V300 H0 Z`} fill={Colores.colinaLejos} />
+        {baldosas.map((x) => (
+          <G key={`a${x}`} transform={`translate(${x}, 0)`}>
+            <ArbolDeFondo x={34} y={182} s={1.1} />
+            <ArbolDeFondo x={78} y={174} s={0.8} />
+            <ArbolDeFondo x={330} y={170} s={1.2} />
+            <ArbolDeFondo x={376} y={176} s={0.9} />
+          </G>
+        ))}
+        <Path d={`M0 236 Q${w / 2} 194 ${w} 236 V300 H0 Z`} fill={Colores.pasto} />
+        {baldosas.map((x) => (
+          <G key={`b${x}`} transform={`translate(${x}, 0)`}>
+            <Arbusto x={40} y={244} />
+            <Arbusto x={350} y={240} />
+          </G>
+        ))}
       </Svg>
       {pastoAbajo > 0 && <View style={[estilos.pasto, { height: pastoAbajo }]} />}
       {oscuro && <View style={estilos.velo} />}
