@@ -23,3 +23,14 @@ export async function subirJardin(usuarioId: string, datos: EstadoJardin): Promi
     .upsert({ usuario_id: usuarioId, datos, actualizado_en: new Date().toISOString() });
   if (error) throw error;
 }
+
+/**
+ * ¿Ya hay una cuenta con este email? Llama a la función `email_registrado` de Supabase
+ * (ver supabase/email.sql). Devuelve null si no se pudo saber (sin conexión, o la función no existe).
+ */
+export async function emailRegistrado(email: string): Promise<boolean | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('email_registrado', { email });
+  if (error || typeof data !== 'boolean') return null;
+  return data;
+}
