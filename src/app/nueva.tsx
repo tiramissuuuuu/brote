@@ -1,8 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Boton } from '@/components/boton';
+import { Campo } from '@/components/campo';
+import { Encabezado } from '@/components/encabezado';
+import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, ColoresFlor, Espacio } from '@/constants/theme';
 import { useJardin } from '@/state/jardin';
 
@@ -18,82 +21,70 @@ export default function NuevaMateria() {
   const horasNum = Number.parseInt(horas, 10);
   const valido = nombre.trim().length > 0 && horasNum > 0;
 
-  const cerrar = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
-  };
-
   const plantar = () => {
     if (!valido) return;
-    agregarMateria({ nombre: nombre.trim(), metaSemanal: horasNum, color });
-    cerrar();
+    const materia = agregarMateria({ nombre: nombre.trim(), metaSemanal: horasNum, color });
+    router.replace({ pathname: '/materia/[id]', params: { id: materia.id, plantada: '1' } });
   };
 
   return (
-    <ScrollView
-      style={estilos.pantalla}
-      contentContainerStyle={estilos.contenido}
-      keyboardShouldPersistTaps="handled">
-      <View style={estilos.columna}>
-        <View style={estilos.campo}>
-          <Text style={estilos.etiqueta}>Nombre</Text>
-          <TextInput
+    <View style={estilos.pantalla}>
+      <Encabezado titulo="Plantar materia" icono="✕" claro />
+      <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
+        <View style={estilos.columna}>
+          <Texto color={Colores.blancoSuave}>
+            Te va a tocar uno de estos árboles al azar: ombú, ceibo, jacarandá, butiá o sauce llorón. 🌳
+          </Texto>
+
+          <Campo
+            etiqueta="Nombre"
             value={nombre}
             onChangeText={setNombre}
             placeholder="Ej.: Cálculo DIV"
-            placeholderTextColor={Colores.textoSuave}
-            style={estilos.entrada}
             autoFocus
             maxLength={60}
             returnKeyType="next"
           />
-        </View>
 
-        <View style={estilos.campo}>
-          <Text style={estilos.etiqueta}>Horas por semana</Text>
-          <TextInput
+          <Campo
+            etiqueta="Horas por semana"
             value={horas}
             onChangeText={(t) => setHoras(soloDigitos(t))}
             placeholder="Ej.: 8"
-            placeholderTextColor={Colores.textoSuave}
-            style={estilos.entrada}
             keyboardType="number-pad"
             maxLength={2}
+            ayuda="Cuando llegues a estas horas en la semana, el árbol florece. Cada lunes vuelve a empezar desde la semilla. De referencia: en la UdelaR cada crédito equivale a 15 horas de trabajo en el semestre, más o menos 1 hora por semana (contando las clases)."
           />
-          <Text style={estilos.ayuda}>
-            Cuando llegues a estas horas en la semana, la planta florece. Cada lunes vuelve a empezar desde
-            la semilla. De referencia: en la UdelaR cada crédito equivale a 15 horas de trabajo en el
-            semestre, más o menos 1 hora por semana (contando las clases).
-          </Text>
-        </View>
 
-        <View style={estilos.campo}>
-          <Text style={estilos.etiqueta}>Color de las flores</Text>
-          <View style={estilos.colores}>
-            {ColoresFlor.map((c) => (
-              <Pressable
-                key={c}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: c === color }}
-                accessibilityLabel={`Color ${c}`}
-                onPress={() => setColor(c)}
-                style={[estilos.color, { backgroundColor: c }, c === color && estilos.colorElegido]}
-              />
-            ))}
+          <View style={estilos.campo}>
+            <Texto variante="subtitulo" color={Colores.blanco}>
+              Color de las flores
+            </Texto>
+            <View style={estilos.colores}>
+              {ColoresFlor.map((c) => (
+                <Pressable
+                  key={c}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: c === color }}
+                  accessibilityLabel={`Color ${c}`}
+                  onPress={() => setColor(c)}
+                  style={[estilos.color, { backgroundColor: c }, c === color && estilos.colorElegido]}
+                />
+              ))}
+            </View>
           </View>
-        </View>
 
-        <Boton titulo="🌱 Plantar semilla" onPress={plantar} deshabilitado={!valido} />
-        <Boton titulo="Cancelar" variante="secundario" onPress={cerrar} />
-      </View>
-    </ScrollView>
+          <Boton titulo="🌱 Plantar semilla" onPress={plantar} deshabilitado={!valido} />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: Colores.fondo,
+    backgroundColor: Colores.pasto,
   },
   contenido: {
     padding: Espacio.m,
@@ -108,39 +99,19 @@ const estilos = StyleSheet.create({
   campo: {
     gap: Espacio.s,
   },
-  etiqueta: {
-    color: Colores.texto,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  entrada: {
-    backgroundColor: Colores.tarjeta,
-    borderWidth: 1,
-    borderColor: Colores.borde,
-    borderRadius: 12,
-    paddingHorizontal: Espacio.m,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: Colores.texto,
-  },
-  ayuda: {
-    color: Colores.textoSuave,
-    fontSize: 13,
-    lineHeight: 18,
-  },
   colores: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Espacio.m - 4,
   },
   color: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 3,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 4,
     borderColor: 'transparent',
   },
   colorElegido: {
-    borderColor: Colores.texto,
+    borderColor: Colores.blanco,
   },
 });

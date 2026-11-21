@@ -14,3 +14,14 @@ export function guardar(clave: string, valor: string): void {
     // Sin almacenamiento disponible: la app sigue andando, pero no guarda.
   }
 }
+
+export function quitar(clave: string): void {
+  try {
+    window.localStorage.removeItem(clave);
+  } catch {
+    // Ídem.
+  }
+}
+
+/** Donde Supabase guarda la sesión del usuario (para no tener que volver a entrar). */
+export const almacenAuth = { getItem: leer, setItem: guardar, removeItem: quitar };

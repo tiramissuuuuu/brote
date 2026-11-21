@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { guardar, leer } from '@/lib/almacenamiento';
+import { guardar, leer, quitar } from '@/lib/almacenamiento';
 import {
+  claveJardin,
   nuevoId,
   SESION_MINIMA_MS,
   type EstadoJardin,
@@ -9,39 +10,118 @@ import {
   type Sesion,
   type SesionActiva,
 } from '@/lib/brote';
+import { esEspecie, especieAlAzar, especieDesdeTexto } from '@/lib/especies';
+import { bajarJardin, subirJardin } from '@/lib/nube';
+import { useCuenta } from '@/state/cuenta';
 
-const CLAVE = 'brote:jardin:v1';
-const VACIO: EstadoJardin = { version: 2, materias: [], sesiones: [], activa: null };
+/** Si falla la conexión con la nube, se vuelve a intentar cada tanto. */
+const REINTENTO_MS = 15_000;
 
-/** Formato viejo (versión 1): meta de horas para todo el semestre, calculada con créditos × 15. */
-type MateriaV1 = Omit<Materia, 'metaSemanal'> & { creditos?: number; metaHoras?: number };
+const vacio = (): EstadoJardin => ({
+  version: 2,
+  materias: [],
+  sesiones: [],
+  activa: null,
+  borrados: [],
+  modificadoEn: 0,
+});
 
-/** Pasa una materia del formato viejo al nuevo: más o menos 1 hora por semana por crédito. */
-function migrarMateria({ creditos, metaHoras, ...resto }: MateriaV1): Materia {
-  const metaSemanal = creditos && creditos > 0 ? creditos : Math.max(1, Math.round((metaHoras ?? 15) / 15));
-  return { ...resto, metaSemanal };
+/** Una materia tal como puede venir guardada, incluso en formatos viejos. */
+type MateriaGuardada = Partial<Materia> &
+  Pick<Materia, 'id' | 'nombre' | 'color' | 'creadaEn'> & { creditos?: number; metaHoras?: number };
+
+function normalizarMateria(m: MateriaGuardada): Materia {
+  let metaSemanal = m.metaSemanal;
+  if (!metaSemanal || metaSemanal <= 0) {
+    // Versión 1: meta del semestre con créditos. Más o menos 1 hora por semana por crédito.
+    metaSemanal = m.creditos && m.creditos > 0 ? m.creditos : Math.max(1, Math.round((m.metaHoras ?? 15) / 15));
+  }
+  return {
+    id: m.id,
+    nombre: m.nombre,
+    color: m.color,
+    creadaEn: m.creadaEn,
+    metaSemanal,
+    // Las materias de antes de que hubiera especies reciben siempre la misma, según su id.
+    especie: esEspecie(m.especie) ? m.especie : especieDesdeTexto(m.id),
+  };
 }
 
-function cargar(): EstadoJardin {
-  const crudo = leer(CLAVE);
-  if (!crudo) return VACIO;
+/** Acepta los formatos viejos y los pasa al actual. Devuelve null si no es un jardín. */
+function normalizar(datos: unknown): EstadoJardin | null {
+  if (!datos || typeof datos !== 'object') return null;
+  const d = datos as {
+    version?: number;
+    materias?: MateriaGuardada[];
+    sesiones?: Sesion[];
+    activa?: SesionActiva | null;
+    borrados?: string[];
+    modificadoEn?: number;
+  };
+  if (d.version !== 1 && d.version !== 2) return null;
+  return {
+    version: 2,
+    materias: (d.materias ?? []).map(normalizarMateria),
+    sesiones: d.sesiones ?? [],
+    activa: d.activa ?? null,
+    borrados: d.borrados ?? [],
+    modificadoEn: d.modificadoEn ?? 0,
+  };
+}
+
+function cargar(clave: string): EstadoJardin {
+  const crudo = leer(clave);
+  if (!crudo) return vacio();
   try {
-    const datos = JSON.parse(crudo) as {
-      version?: number;
-      materias?: (Materia | MateriaV1)[];
-      sesiones?: Sesion[];
-      activa?: SesionActiva | null;
-    };
-    if (datos.version !== 1 && datos.version !== 2) return VACIO;
-    return {
-      version: 2,
-      materias: (datos.materias ?? []).map((m) => ('metaSemanal' in m ? m : migrarMateria(m))),
-      sesiones: datos.sesiones ?? [],
-      activa: datos.activa ?? null,
-    };
+    return normalizar(JSON.parse(crudo)) ?? vacio();
   } catch {
-    return VACIO;
+    return vacio();
   }
+}
+
+const tieneDatos = (e: EstadoJardin) => e.materias.length > 0 || e.sesiones.length > 0;
+
+/**
+ * Junta dos jardines sumando materias y sesiones (sin repetir y sin lo borrado en cualquiera de los dos).
+ * Así no se pierde nada aunque se haya usado la app en dos dispositivos, o sin conexión.
+ */
+function juntar(a: EstadoJardin, b: EstadoJardin, activa: SesionActiva | null, modificadoEn: number): EstadoJardin {
+  const borrados = new Set([...a.borrados, ...b.borrados]);
+  const unir = <T extends { id: string }>(lista: T[]) => {
+    const vistos = new Set<string>();
+    return lista.filter((item) => {
+      if (vistos.has(item.id) || borrados.has(item.id)) return false;
+      vistos.add(item.id);
+      return true;
+    });
+  };
+  const materias = unir([...a.materias, ...b.materias]).sort((x, y) => x.creadaEn - y.creadaEn);
+  return {
+    version: 2,
+    materias,
+    sesiones: unir([...a.sesiones, ...b.sesiones]),
+    activa: activa && materias.some((m) => m.id === activa.materiaId) ? activa : null,
+    borrados: [...borrados],
+    modificadoEn,
+  };
+}
+
+/** Dos copias del jardín de la misma cuenta (la de la nube y la del dispositivo). */
+function juntarCopias(a: EstadoJardin, b: EstadoJardin): EstadoJardin {
+  // La sesión en curso sale de la copia más nueva (si la terminaste en otro lado, no vuelve).
+  const nueva = a.modificadoEn >= b.modificadoEn ? a : b;
+  return juntar(a, b, nueva.activa, Math.max(a.modificadoEn, b.modificadoEn));
+}
+
+/** Lo que tenías como invitado pasa a la cuenta. */
+function pasarInvitado(cuenta: EstadoJardin, invitado: EstadoJardin): EstadoJardin {
+  if (!tieneDatos(invitado)) return cuenta;
+  return juntar(cuenta, invitado, cuenta.activa ?? invitado.activa, Math.max(cuenta.modificadoEn, invitado.modificadoEn));
+}
+
+/** El jardín de una cuenta en este dispositivo, sumando lo de invitado que todavía no se pasó. */
+function cargarCuenta(clave: string): EstadoJardin {
+  return pasarInvitado(cargar(clave), cargar(claveJardin(null)));
 }
 
 /** Convierte la sesión en curso (si hay) en una sesión guardada. */
@@ -52,13 +132,23 @@ function cerrarActiva(estado: EstadoJardin, ahora: number, id: string): EstadoJa
     ahora - activa.inicio >= SESION_MINIMA_MS
       ? [...estado.sesiones, { id, materiaId: activa.materiaId, inicio: activa.inicio, fin: ahora }]
       : estado.sesiones;
-  return { ...estado, sesiones, activa: null };
+  return { ...estado, sesiones, activa: null, modificadoEn: ahora };
 }
+
+/**
+ * - solo-dispositivo: modo invitado.
+ * - sincronizando: bajando o subiendo cambios.
+ * - guardado: todo está en la nube.
+ * - sin-conexion: no se pudo hablar con la nube; los cambios quedan en el dispositivo.
+ */
+export type EstadoNube = 'solo-dispositivo' | 'sincronizando' | 'guardado' | 'sin-conexion';
 
 type DatosMateria = Pick<Materia, 'nombre' | 'metaSemanal' | 'color'>;
 
 type ValorJardin = EstadoJardin & {
-  agregarMateria: (datos: DatosMateria) => string;
+  nube: EstadoNube;
+  /** Planta la materia con una especie al azar y la devuelve. */
+  agregarMateria: (datos: DatosMateria) => Materia;
   eliminarMateria: (id: string) => void;
   empezar: (materiaId: string) => void;
   terminar: () => void;
@@ -69,24 +159,102 @@ type ValorJardin = EstadoJardin & {
 const ContextoJardin = createContext<ValorJardin | null>(null);
 
 export function ProveedorJardin({ children }: { children: ReactNode }) {
-  const [estado, setEstado] = useState<EstadoJardin>(cargar);
+  const { usuario } = useCuenta();
+  const usuarioId = usuario?.id ?? null;
+  const clave = claveJardin(usuarioId);
 
+  const cargarDueno = () => (usuarioId ? cargarCuenta(clave) : cargar(clave));
+
+  const [dueno, setDueno] = useState(clave);
+  const [estado, setEstado] = useState(cargarDueno);
+  // Con cuenta, no se sube nada hasta haber bajado lo que hay en la nube (para no pisarlo).
+  const [nubeLista, setNubeLista] = useState(false);
+  const [nube, setNube] = useState<EstadoNube>('solo-dispositivo');
+  // Se incrementa para volver a intentar la subida después de un error de conexión.
+  const [intentoSubida, setIntentoSubida] = useState(0);
+
+  // Al entrar o salir de una cuenta, se carga el jardín de esa cuenta (o el de invitado).
+  // Al entrar, lo de invitado se muestra enseguida, sin esperar a la nube.
+  if (dueno !== clave) {
+    setDueno(clave);
+    setEstado(cargarDueno());
+    setNubeLista(false);
+    setNube(usuarioId ? 'sincronizando' : 'solo-dispositivo');
+  }
+
+  // Bajar el jardín de la nube al entrar a una cuenta.
   useEffect(() => {
-    guardar(CLAVE, JSON.stringify(estado));
-  }, [estado]);
+    if (!usuarioId) return;
+    let cancelado = false;
+    let reintento: ReturnType<typeof setTimeout> | undefined;
+    const sincronizar = async () => {
+      try {
+        const remoto = normalizar(await bajarJardin(usuarioId));
+        if (cancelado) return;
+        const invitado = cargar(claveJardin(null));
+        // Se suma lo de la nube con lo del dispositivo (por si hubo cambios sin conexión o en otro
+        // dispositivo), y lo que tenías como invitado pasa a tu cuenta.
+        setEstado((local) => pasarInvitado(remoto ? juntarCopias(remoto, local) : local, invitado));
+        if (tieneDatos(invitado)) quitar(claveJardin(null));
+        setNubeLista(true);
+        setNube('guardado');
+      } catch {
+        if (cancelado) return;
+        setNube('sin-conexion');
+        reintento = setTimeout(sincronizar, REINTENTO_MS);
+      }
+    };
+    sincronizar();
+    return () => {
+      cancelado = true;
+      clearTimeout(reintento);
+    };
+  }, [usuarioId]);
+
+  // Siempre se guarda en el dispositivo.
+  useEffect(() => {
+    guardar(clave, JSON.stringify(estado));
+  }, [clave, estado]);
+
+  // Con cuenta, además se sube a la nube (esperando un momento por si hay varios cambios seguidos).
+  useEffect(() => {
+    if (!usuarioId || !nubeLista) return;
+    let cancelado = false;
+    let reintento: ReturnType<typeof setTimeout> | undefined;
+    const temporizador = setTimeout(async () => {
+      setNube('sincronizando');
+      try {
+        await subirJardin(usuarioId, estado);
+        if (!cancelado) setNube('guardado');
+      } catch {
+        if (cancelado) return;
+        setNube('sin-conexion');
+        reintento = setTimeout(() => setIntentoSubida((n) => n + 1), REINTENTO_MS);
+      }
+    }, 800);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+      clearTimeout(reintento);
+    };
+  }, [usuarioId, nubeLista, estado, intentoSubida]);
 
   const agregarMateria = (datos: DatosMateria) => {
-    const materia: Materia = { ...datos, id: nuevoId(), creadaEn: Date.now() };
-    setEstado((e) => ({ ...e, materias: [...e.materias, materia] }));
-    return materia.id;
+    const ahora = Date.now();
+    const materia: Materia = { ...datos, id: nuevoId(), especie: especieAlAzar(), creadaEn: ahora };
+    setEstado((e) => ({ ...e, materias: [...e.materias, materia], modificadoEn: ahora }));
+    return materia;
   };
 
   const eliminarMateria = (id: string) => {
+    const ahora = Date.now();
     setEstado((e) => ({
       ...e,
       materias: e.materias.filter((m) => m.id !== id),
       sesiones: e.sesiones.filter((s) => s.materiaId !== id),
       activa: e.activa?.materiaId === id ? null : e.activa,
+      borrados: [...e.borrados, id, ...e.sesiones.filter((s) => s.materiaId === id).map((s) => s.id)],
+      modificadoEn: ahora,
     }));
   };
 
@@ -96,7 +264,7 @@ export function ProveedorJardin({ children }: { children: ReactNode }) {
     const id = nuevoId();
     setEstado((e) => {
       if (e.activa?.materiaId === materiaId) return e;
-      return { ...cerrarActiva(e, ahora, id), activa: { materiaId, inicio: ahora } };
+      return { ...cerrarActiva(e, ahora, id), activa: { materiaId, inicio: ahora }, modificadoEn: ahora };
     });
   };
 
@@ -109,17 +277,24 @@ export function ProveedorJardin({ children }: { children: ReactNode }) {
   const agregarTiempo = (materiaId: string, minutos: number) => {
     const fin = Date.now();
     const sesion = { id: nuevoId(), materiaId, inicio: fin - minutos * 60_000, fin, manual: true };
-    setEstado((e) => ({ ...e, sesiones: [...e.sesiones, sesion] }));
+    setEstado((e) => ({ ...e, sesiones: [...e.sesiones, sesion], modificadoEn: fin }));
   };
 
   const borrarSesion = (id: string) => {
-    setEstado((e) => ({ ...e, sesiones: e.sesiones.filter((s) => s.id !== id) }));
+    const ahora = Date.now();
+    setEstado((e) => ({
+      ...e,
+      sesiones: e.sesiones.filter((s) => s.id !== id),
+      borrados: [...e.borrados, id],
+      modificadoEn: ahora,
+    }));
   };
 
   return (
     <ContextoJardin.Provider
       value={{
         ...estado,
+        nube,
         agregarMateria,
         eliminarMateria,
         empezar,

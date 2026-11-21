@@ -1,6 +1,10 @@
+import type { EspecieId } from '@/lib/especies';
+
 export type Materia = {
   id: string;
   nombre: string;
+  /** El árbol que le tocó al plantarla. */
+  especie: EspecieId;
   /** Horas por semana para que la planta llegue a su máximo. */
   metaSemanal: number;
   color: string;
@@ -27,7 +31,19 @@ export type EstadoJardin = {
   materias: Materia[];
   sesiones: Sesion[];
   activa: SesionActiva | null;
+  /**
+   * Ids de materias y sesiones borradas. Al juntar dos versiones del jardín (la de la nube y la del
+   * dispositivo) se suman las dos, y esta lista evita que algo borrado vuelva a aparecer.
+   */
+  borrados: string[];
+  /** Última modificación: al juntar versiones, la sesión en curso sale de la más nueva. */
+  modificadoEn: number;
 };
+
+/** Dónde se guarda el jardín en el dispositivo: uno para invitado y uno por cada cuenta. */
+export function claveJardin(usuarioId: string | null): string {
+  return usuarioId ? `brote:jardin:cuenta:${usuarioId}` : 'brote:jardin:v1';
+}
 
 /** Las sesiones más cortas que esto se descartan (por ejemplo, un toque sin querer). */
 export const SESION_MINIMA_MS = 10_000;
@@ -117,9 +133,55 @@ export function historialSemanal(
   return semanas;
 }
 
-// ---------- Planta ----------
+// ---------- Totales ----------
 
-/** De 0 (semilla) a 1 (planta completa): horas de la semana sobre la meta semanal. */
+/** Progreso de la semana sumando todas las materias (lo que pasa de la meta de una no compensa otra). */
+export function progresoGeneral(
+  materias: Materia[],
+  sesiones: Sesion[],
+  activa: SesionActiva | null,
+  ahora: number,
+): { ms: number; progreso: number; cumplidas: number } {
+  let ms = 0;
+  let logrado = 0;
+  let meta = 0;
+  let cumplidas = 0;
+  for (const materia of materias) {
+    const msMateria = msEstaSemana(materia.id, sesiones, activa, ahora);
+    const metaMs = materia.metaSemanal * MS_POR_HORA;
+    ms += msMateria;
+    logrado += Math.min(msMateria, metaMs);
+    meta += metaMs;
+    if (metaMs > 0 && msMateria >= metaMs) cumplidas++;
+  }
+  return { ms, progreso: meta > 0 ? logrado / meta : 0, cumplidas };
+}
+
+/** Días seguidos (hasta hoy, o hasta ayer si hoy todavía no estudiaste) con al menos un minuto de estudio. */
+export function rachaDias(sesiones: Sesion[], activa: SesionActiva | null, ahora: number): number {
+  const clave = (ts: number) => {
+    const fecha = new Date(ts);
+    return `${fecha.getFullYear()}-${fecha.getMonth()}-${fecha.getDate()}`;
+  };
+  const dias = new Set<string>();
+  for (const sesion of sesiones) {
+    if (sesion.fin - sesion.inicio >= 60_000) dias.add(clave(sesion.inicio));
+  }
+  if (activa && ahora - activa.inicio >= 60_000) dias.add(clave(activa.inicio));
+
+  const dia = new Date(ahora);
+  if (!dias.has(clave(dia.getTime()))) dia.setDate(dia.getDate() - 1);
+  let racha = 0;
+  while (dias.has(clave(dia.getTime()))) {
+    racha++;
+    dia.setDate(dia.getDate() - 1);
+  }
+  return racha;
+}
+
+// ---------- Árbol ----------
+
+/** De 0 (semilla) a 1 (árbol completo): horas de la semana sobre la meta semanal. */
 export function calcularProgreso(ms: number, metaSemanal: number): number {
   if (metaSemanal <= 0) return 0;
   return Math.min(1, ms / (metaSemanal * MS_POR_HORA));
@@ -137,12 +199,13 @@ export function nombreEtapa(progreso: number): string {
 
 // ---------- Formatos ----------
 
-export function formatoHoras(ms: number): string {
-  if (ms <= 0) return '0 min';
-  const minutos = Math.floor(ms / 60_000);
-  if (minutos < 1) return '< 1 min';
-  if (minutos < 60) return `${minutos} min`;
-  return `${(ms / MS_POR_HORA).toFixed(1).replace('.', ',')} h`;
+/** "0m", "45m", "2h 24m", "3h". */
+export function formatoDuracion(ms: number): string {
+  const minutos = Math.max(0, Math.floor(ms / 60_000));
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  if (horas === 0) return `${resto}m`;
+  return resto === 0 ? `${horas}h` : `${horas}h ${resto}m`;
 }
 
 export function formatoReloj(ms: number): string {

@@ -1,21 +1,28 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Arbol, PROPORCION_ARBOL } from '@/components/arbol';
 import { BarraProgreso } from '@/components/barra-progreso';
 import { Boton } from '@/components/boton';
-import { Planta } from '@/components/planta';
+import { Encabezado } from '@/components/encabezado';
+import { alturaSuelo, Escena } from '@/components/escena';
+import { Panel } from '@/components/panel';
+import { TarjetaDato } from '@/components/tarjeta-dato';
+import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
 import {
   calcularProgreso,
+  formatoDuracion,
   formatoFecha,
-  formatoHoras,
   formatoReloj,
   formatoSemana,
   historialSemanal,
   nombreEtapa,
 } from '@/lib/brote';
+import { ESPECIES } from '@/lib/especies';
 import { useJardin } from '@/state/jardin';
 
 const ATAJOS = [
@@ -25,6 +32,7 @@ const ATAJOS = [
 ];
 
 const SESIONES_VISIBLES = 20;
+const ALTO_ENCABEZADO = 64;
 
 function nombreSemana(indice: number, inicio: number): string {
   if (indice === 0) return 'Esta semana';
@@ -33,31 +41,19 @@ function nombreSemana(indice: number, inicio: number): string {
 }
 
 export default function PantallaMateria() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, plantada } = useLocalSearchParams<{ id: string; plantada?: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const jardin = useJardin();
   const ahora = useAhora(jardin.activa !== null);
   const [sesionABorrar, setSesionABorrar] = useState<string | null>(null);
   const [confirmarEliminar, setConfirmarEliminar] = useState(false);
 
-  const volverAlJardin = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
-  };
-
   const materia = jardin.materias.find((m) => m.id === id);
+  if (!materia) return <Redirect href="/" />;
 
-  if (!materia) {
-    return (
-      <View style={estilos.noEncontrada}>
-        <Stack.Screen options={{ title: 'Materia' }} />
-        <Text style={estilos.texto}>No encontramos esta materia.</Text>
-        <Boton titulo="Volver al jardín" variante="secundario" onPress={() => router.replace('/')} />
-      </View>
-    );
-  }
-
+  const especie = ESPECIES[materia.especie];
   const { activa } = jardin;
   const estaActiva = activa?.materiaId === materia.id;
   const otraActiva = activa && !estaActiva ? jardin.materias.find((m) => m.id === activa.materiaId) : undefined;
@@ -65,12 +61,15 @@ export default function PantallaMateria() {
   const semanas = historialSemanal(materia, jardin.sesiones, activa, ahora);
   const msSemana = semanas[0].ms;
   const progreso = calcularProgreso(msSemana, materia.metaSemanal);
-  const semanasCumplidas = semanas.filter((s) => calcularProgreso(s.ms, materia.metaSemanal) >= 1).length;
-
+  const cumplidas = semanas.filter((s) => calcularProgreso(s.ms, materia.metaSemanal) >= 1).length;
   const sesiones = jardin.sesiones
     .filter((s) => s.materiaId === materia.id)
     .sort((a, b) => b.inicio - a.inicio);
-  const tamanoPlanta = Math.min(width - Espacio.m * 2, 260);
+
+  const ancho = Math.min(width, AnchoMaximo);
+  const altoEscena = insets.top + 380;
+  const espacioArbol = altoEscena - insets.top - ALTO_ENCABEZADO - alturaSuelo(ancho, altoEscena);
+  const tamanoArbol = Math.min(ancho * 0.62, espacioArbol / PROPORCION_ARBOL);
 
   const tocarBorrarSesion = (sesionId: string) => {
     if (sesionABorrar === sesionId) {
@@ -82,216 +81,226 @@ export default function PantallaMateria() {
   };
 
   const eliminar = () => {
-    volverAlJardin();
+    router.replace('/');
     jardin.eliminarMateria(materia.id);
   };
 
   return (
-    <ScrollView style={estilos.pantalla} contentContainerStyle={estilos.contenido}>
-      <Stack.Screen options={{ title: materia.nombre }} />
-      <View style={estilos.columna}>
-        <View style={estilos.escena}>
-          <Planta progreso={progreso} color={materia.color} semilla={materia.id} tamano={tamanoPlanta} />
-          <Text style={estilos.etapa}>{nombreEtapa(progreso)}</Text>
-          <Text style={estilos.textoSuave}>
-            {formatoHoras(msSemana)} de {materia.metaSemanal} h esta semana · {Math.floor(progreso * 100)}%
-          </Text>
-          <View style={estilos.barra}>
-            <BarraProgreso progreso={progreso} color={materia.color} />
-          </View>
-        </View>
-
-        <View style={estilos.tarjeta}>
-          {estaActiva && activa ? (
-            <>
-              <Text style={estilos.etiqueta}>💧 Regando tu planta</Text>
-              <Text style={estilos.reloj}>{formatoReloj(ahora - activa.inicio)}</Text>
-              <Boton titulo="Terminar sesión" variante="peligro" onPress={jardin.terminar} />
-            </>
-          ) : (
-            <>
-              <Text style={estilos.etiqueta}>¿Arrancamos?</Text>
-              <Text style={[estilos.reloj, estilos.relojApagado]}>00:00</Text>
-              <Boton titulo="Empezar a estudiar" onPress={() => jardin.empezar(materia.id)} />
-              {otraActiva && (
-                <Text style={estilos.aviso}>Se va a terminar la sesión de {otraActiva.nombre}.</Text>
-              )}
-            </>
-          )}
-        </View>
-
-        <View style={estilos.tarjeta}>
-          <Text style={estilos.seccion}>¿Te olvidaste de prender el cronómetro?</Text>
-          <View style={estilos.fila}>
-            {ATAJOS.map((atajo) => (
-              <Boton
-                key={atajo.minutos}
-                titulo={atajo.etiqueta}
-                variante="secundario"
-                style={estilos.botonFila}
-                onPress={() => jardin.agregarTiempo(materia.id, atajo.minutos)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={estilos.tarjeta}>
+    <View style={estilos.pantalla}>
+      <ScrollView contentContainerStyle={[estilos.contenido, { paddingBottom: insets.bottom + Espacio.xl * 2 }]}>
+        <View style={{ width: ancho }}>
           <View>
-            <Text style={estilos.seccion}>Semana a semana</Text>
-            <Text style={estilos.textoSuave}>
-              Meta: {materia.metaSemanal} h por semana · Cumpliste la meta en {semanasCumplidas} de{' '}
-              {semanas.length} {semanas.length === 1 ? 'semana' : 'semanas'}
-            </Text>
-          </View>
-          {semanas.map((semana, i) => {
-            const p = calcularProgreso(semana.ms, materia.metaSemanal);
-            return (
-              <View key={semana.inicio} style={estilos.semana}>
-                <Planta progreso={p} color={materia.color} semilla={materia.id} tamano={40} />
-                <View style={estilos.semanaDatos}>
-                  <View style={estilos.semanaTitulo}>
-                    <Text style={[estilos.texto, i === 0 && estilos.negrita]}>{nombreSemana(i, semana.inicio)}</Text>
-                    <Text style={estilos.texto}>
-                      {p >= 1 ? '🌸 ' : ''}
-                      {formatoHoras(semana.ms)}
-                    </Text>
-                  </View>
-                  <BarraProgreso progreso={p} color={materia.color} />
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        <View style={estilos.tarjeta}>
-          <Text style={estilos.seccion}>Sesiones recientes</Text>
-          {sesiones.length === 0 ? (
-            <Text style={estilos.textoSuave}>Todavía no hay sesiones.</Text>
-          ) : (
-            sesiones.slice(0, SESIONES_VISIBLES).map((s) => (
-              <View key={s.id} style={estilos.sesion}>
-                <View style={estilos.sesionDatos}>
-                  <Text style={estilos.texto}>
-                    {formatoHoras(s.fin - s.inicio)}
-                    {s.manual ? ' · a mano' : ''}
-                  </Text>
-                  <Text style={estilos.textoSuave}>{formatoFecha(s.inicio)}</Text>
-                </View>
-                <Pressable accessibilityRole="button" hitSlop={8} onPress={() => tocarBorrarSesion(s.id)}>
-                  <Text style={[estilos.borrar, sesionABorrar === s.id && estilos.borrarConfirmar]}>
-                    {sesionABorrar === s.id ? '¿Borrar?' : 'Borrar'}
-                  </Text>
-                </Pressable>
-              </View>
-            ))
-          )}
-          {sesiones.length > SESIONES_VISIBLES && (
-            <Text style={estilos.textoSuave}>y {sesiones.length - SESIONES_VISIBLES} más</Text>
-          )}
-        </View>
-
-        {confirmarEliminar ? (
-          <View style={estilos.tarjeta}>
-            <Text style={estilos.texto}>
-              ¿Eliminar {materia.nombre} y todo su historial? No se puede deshacer.
-            </Text>
-            <View style={estilos.fila}>
-              <Boton
-                titulo="Cancelar"
-                variante="secundario"
-                style={estilos.botonFila}
-                onPress={() => setConfirmarEliminar(false)}
+            <Escena ancho={ancho} alto={altoEscena}>
+              <Arbol
+                especie={materia.especie}
+                progreso={progreso}
+                color={materia.color}
+                semilla={materia.id}
+                tamano={tamanoArbol}
               />
-              <Boton titulo="Sí, eliminar" variante="peligro" style={estilos.botonFila} onPress={eliminar} />
+            </Escena>
+            <View style={estilos.encabezado}>
+              <Encabezado titulo={materia.nombre} />
             </View>
           </View>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            style={estilos.eliminar}
-            onPress={() => setConfirmarEliminar(true)}>
-            <Text style={estilos.borrar}>Eliminar materia</Text>
-          </Pressable>
-        )}
-      </View>
-    </ScrollView>
+
+          <View style={estilos.cuerpo}>
+            {plantada === '1' && sesiones.length === 0 && !estaActiva && (
+              <View style={estilos.sorpresa}>
+                <Texto variante="subtitulo" style={estilos.centrado}>
+                  🎉 ¡Te tocó un {especie.nombre}!
+                </Texto>
+                <Texto variante="chico" style={estilos.centrado}>
+                  {especie.dato}
+                </Texto>
+              </View>
+            )}
+
+            <View>
+              <Texto variante="enorme">
+                {estaActiva && activa ? (
+                  formatoReloj(ahora - activa.inicio)
+                ) : (
+                  <>
+                    {Math.floor(progreso * 100)}
+                    <Texto variante="enorme" style={estilos.porciento}>
+                      %
+                    </Texto>
+                  </>
+                )}
+              </Texto>
+              <Texto variante="chico" color={Colores.blancoSuave} style={estilos.centrado}>
+                {estaActiva
+                  ? `Regando tu ${especie.nombre.toLowerCase()} · ${Math.floor(progreso * 100)}% de la meta`
+                  : `${nombreEtapa(progreso)} · ${formatoDuracion(msSemana)} de ${materia.metaSemanal}h esta semana`}
+              </Texto>
+            </View>
+            <BarraProgreso progreso={progreso} />
+
+            <View style={estilos.fila}>
+              <TarjetaDato icono="⏱️" valor={formatoDuracion(msSemana)} etiqueta="Esta semana" />
+              <TarjetaDato icono="🎯" valor={`${materia.metaSemanal}h`} etiqueta="Meta semanal" />
+              <TarjetaDato icono="🌸" valor={`${cumplidas}/${semanas.length}`} etiqueta="Semanas cumplidas" />
+            </View>
+
+            {estaActiva ? (
+              <Boton titulo="Terminar sesión" variante="peligro" onPress={jardin.terminar} />
+            ) : (
+              <View style={estilos.grupo}>
+                <Boton titulo="🌱 Empezar a estudiar" onPress={() => jardin.empezar(materia.id)} />
+                {otraActiva && (
+                  <Texto variante="chico" color={Colores.blancoSuave} style={estilos.centrado}>
+                    Se va a terminar la sesión de {otraActiva.nombre}.
+                  </Texto>
+                )}
+              </View>
+            )}
+
+            <Panel titulo="¿Te olvidaste del cronómetro?" subtitulo="Sumá el tiempo que estudiaste">
+              <View style={estilos.fila}>
+                {ATAJOS.map((atajo) => (
+                  <Boton
+                    key={atajo.minutos}
+                    titulo={atajo.etiqueta}
+                    variante="secundario"
+                    style={estilos.botonFila}
+                    onPress={() => jardin.agregarTiempo(materia.id, atajo.minutos)}
+                  />
+                ))}
+              </View>
+            </Panel>
+
+            <Panel
+              titulo="Semana a semana"
+              subtitulo={`Cumpliste la meta en ${cumplidas} de ${semanas.length} ${semanas.length === 1 ? 'semana' : 'semanas'}`}>
+              {semanas.map((semana, i) => {
+                const p = calcularProgreso(semana.ms, materia.metaSemanal);
+                return (
+                  <View key={semana.inicio} style={estilos.semana}>
+                    <View style={estilos.semanaArbol}>
+                      <Arbol
+                        especie={materia.especie}
+                        progreso={p}
+                        color={materia.color}
+                        semilla={materia.id}
+                        tamano={40}
+                      />
+                    </View>
+                    <View style={estilos.semanaDatos}>
+                      <View style={estilos.semanaTitulo}>
+                        <Texto variante={i === 0 ? 'subtitulo' : 'cuerpo'} color={Colores.blanco}>
+                          {nombreSemana(i, semana.inicio)}
+                        </Texto>
+                        <Texto variante="subtitulo" color={Colores.blanco}>
+                          {p >= 1 ? '🌸 ' : ''}
+                          {formatoDuracion(semana.ms)}
+                        </Texto>
+                      </View>
+                      <BarraProgreso progreso={p} alto={8} />
+                    </View>
+                  </View>
+                );
+              })}
+            </Panel>
+
+            <Panel titulo={`Tu ${especie.nombre.toLowerCase()}`} subtitulo={especie.cientifico}>
+              <Texto color={Colores.blanco}>{especie.dato}</Texto>
+            </Panel>
+
+            <Panel titulo="Sesiones recientes">
+              {sesiones.length === 0 ? (
+                <Texto variante="chico" color={Colores.blancoSuave}>
+                  Todavía no hay sesiones.
+                </Texto>
+              ) : (
+                sesiones.slice(0, SESIONES_VISIBLES).map((s) => (
+                  <View key={s.id} style={estilos.sesion}>
+                    <View style={estilos.sesionDatos}>
+                      <Texto color={Colores.blanco}>
+                        {formatoDuracion(s.fin - s.inicio)}
+                        {s.manual ? ' · a mano' : ''}
+                      </Texto>
+                      <Texto variante="chico" color={Colores.blancoSuave}>
+                        {formatoFecha(s.inicio)}
+                      </Texto>
+                    </View>
+                    <Pressable accessibilityRole="button" hitSlop={8} onPress={() => tocarBorrarSesion(s.id)}>
+                      <Texto variante={sesionABorrar === s.id ? 'subtitulo' : 'cuerpo'} color="#FFD1D1">
+                        {sesionABorrar === s.id ? '¿Borrar?' : 'Borrar'}
+                      </Texto>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+              {sesiones.length > SESIONES_VISIBLES && (
+                <Texto variante="chico" color={Colores.blancoSuave}>
+                  y {sesiones.length - SESIONES_VISIBLES} más
+                </Texto>
+              )}
+            </Panel>
+
+            {confirmarEliminar ? (
+              <Panel titulo={`¿Eliminar ${materia.nombre}?`} subtitulo="Se borra el árbol y todo su historial. No se puede deshacer.">
+                <View style={estilos.fila}>
+                  <Boton
+                    titulo="Cancelar"
+                    variante="secundario"
+                    style={estilos.botonFila}
+                    onPress={() => setConfirmarEliminar(false)}
+                  />
+                  <Boton titulo="Sí, eliminar" variante="peligro" style={estilos.botonFila} onPress={eliminar} />
+                </View>
+              </Panel>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                style={estilos.eliminar}
+                onPress={() => setConfirmarEliminar(true)}>
+                <Texto color="#FFD1D1">Eliminar materia</Texto>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const estilos = StyleSheet.create({
   pantalla: {
     flex: 1,
-    backgroundColor: Colores.fondo,
+    backgroundColor: Colores.pasto,
   },
   contenido: {
-    padding: Espacio.m,
-    paddingBottom: Espacio.xl * 2,
     alignItems: 'center',
   },
-  columna: {
-    width: '100%',
-    maxWidth: AnchoMaximo - Espacio.m * 2,
+  encabezado: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
+  cuerpo: {
+    paddingHorizontal: Espacio.m,
     gap: Espacio.m,
   },
-  noEncontrada: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Espacio.m,
-    padding: Espacio.l,
-    backgroundColor: Colores.fondo,
-  },
-  escena: {
-    alignItems: 'center',
+  sorpresa: {
     gap: Espacio.xs,
-  },
-  etapa: {
-    color: Colores.texto,
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: Espacio.s,
-  },
-  barra: {
-    alignSelf: 'stretch',
-    marginTop: Espacio.s,
-    marginHorizontal: Espacio.xl,
-  },
-  tarjeta: {
-    backgroundColor: Colores.tarjeta,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colores.borde,
     padding: Espacio.m,
-    gap: Espacio.m - 4,
+    borderRadius: 18,
+    backgroundColor: Colores.amarillo,
   },
-  etiqueta: {
-    color: Colores.textoSuave,
-    fontSize: 14,
-    fontWeight: '600',
+  centrado: {
     textAlign: 'center',
   },
-  reloj: {
-    color: Colores.texto,
-    fontSize: 52,
-    fontWeight: '700',
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-  relojApagado: {
-    color: Colores.borde,
-  },
-  aviso: {
-    color: Colores.textoSuave,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  seccion: {
-    color: Colores.texto,
-    fontSize: 16,
-    fontWeight: '700',
+  porciento: {
+    fontSize: 36,
   },
   fila: {
     flexDirection: 'row',
+    gap: Espacio.s + 2,
+  },
+  grupo: {
     gap: Espacio.s,
   },
   botonFila: {
@@ -302,13 +311,19 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Espacio.m - 4,
-    paddingTop: Espacio.xs,
-    borderTopWidth: 1,
-    borderTopColor: Colores.borde,
+  },
+  semanaArbol: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
   },
   semanaDatos: {
     flex: 1,
-    gap: Espacio.s,
+    gap: 6,
   },
   semanaTitulo: {
     flexDirection: 'row',
@@ -319,30 +334,12 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Espacio.s,
-    paddingVertical: Espacio.xs,
+    paddingTop: Espacio.s,
     borderTopWidth: 1,
-    borderTopColor: Colores.borde,
+    borderTopColor: 'rgba(255,255,255,0.15)',
   },
   sesionDatos: {
     flex: 1,
-  },
-  texto: {
-    color: Colores.texto,
-    fontSize: 15,
-  },
-  negrita: {
-    fontWeight: '700',
-  },
-  textoSuave: {
-    color: Colores.textoSuave,
-    fontSize: 13,
-  },
-  borrar: {
-    color: Colores.peligro,
-    fontSize: 14,
-  },
-  borrarConfirmar: {
-    fontWeight: '700',
   },
   eliminar: {
     alignSelf: 'center',
