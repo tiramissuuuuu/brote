@@ -1,5 +1,5 @@
 import { Redirect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Arbol, PROPORCION_ARBOL } from '@/components/arbol';
@@ -41,7 +41,8 @@ export default function Jardin() {
   const ahora = useAhora(activa !== null);
 
   if (estadoCuenta === 'cargando') return null;
-  if (estadoCuenta === 'sin-elegir') return <Redirect href="/bienvenida" />;
+  // Primera vez: en la web se muestra la página de inicio; en el celular, directo la bienvenida.
+  if (estadoCuenta === 'sin-elegir') return <Redirect href={Platform.OS === 'web' ? '/inicio' : '/bienvenida'} />;
 
   const ancho = escritorio
     ? Math.min(anchoVentana - ANCHO_LATERAL, ANCHO_CONTENIDO_ESCRITORIO)
@@ -147,7 +148,13 @@ export default function Jardin() {
             </View>
           </View>
 
-          {escritorio ? (
+          {escritorio && materias.length === 0 ? (
+            // Computadora sin materias: el mensaje y el botón centrados.
+            <View style={[estilos.cuerpo, estilos.vacioEscritorio]}>
+              {resumen}
+              {plantar}
+            </View>
+          ) : escritorio ? (
             // Computadora: a la izquierda el resumen de la semana, a la derecha la lista de materias.
             <View style={[estilos.cuerpo, estilos.cuerpoEscritorio]}>
               <View style={estilos.columnaResumen}>
@@ -286,6 +293,12 @@ const estilos = StyleSheet.create({
     marginHorizontal: Espacio.m,
     borderRadius: 28,
     overflow: 'hidden',
+  },
+  vacioEscritorio: {
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 520,
+    paddingTop: Espacio.xl,
   },
   cuerpoEscritorio: {
     flexDirection: 'row',
