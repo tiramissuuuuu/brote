@@ -1,98 +1,161 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Boton } from '@/components/boton';
+import { Planta } from '@/components/planta';
+import { TarjetaMateria } from '@/components/tarjeta-materia';
+import { AnchoMaximo, Colores, ColoresFlor, Espacio } from '@/constants/theme';
+import { useAhora } from '@/hooks/use-ahora';
+import { formatoHoras, formatoReloj, msEstudiados } from '@/lib/brote';
+import { useJardin } from '@/state/jardin';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+const SEPARACION = 12;
+
+export default function Jardin() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const { materias, sesiones, activa } = useJardin();
+  const ahora = useAhora(activa !== null);
+
+  // Se mide el ancho real de la grilla: en web la barra de scroll le quita espacio a la ventana.
+  const [anchoGrilla, setAnchoGrilla] = useState<number | null>(null);
+  const anchoUtil = anchoGrilla ?? Math.min(width, AnchoMaximo) - Espacio.m * 2;
+  const columnas = anchoUtil >= 560 ? 3 : 2;
+  const anchoTarjeta = Math.floor((anchoUtil - SEPARACION * (columnas - 1)) / columnas);
+
+  const materiaActiva = activa ? materias.find((m) => m.id === activa.materiaId) : undefined;
+  const totalMs = materias.reduce((suma, m) => suma + msEstudiados(m.id, sesiones, activa, ahora), 0);
+
+  const abrirMateria = (id: string) => router.push({ pathname: '/materia/[id]', params: { id } });
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <ScrollView
+      style={estilos.pantalla}
+      contentContainerStyle={[
+        estilos.contenido,
+        { paddingTop: insets.top + Espacio.l, paddingBottom: insets.bottom + Espacio.xl },
+      ]}>
+      <View style={estilos.columna}>
+        <View>
+          <Text style={estilos.marca}>🌱 brote</Text>
+          <Text style={estilos.titulo}>Tu jardín</Text>
+          <Text style={estilos.subtitulo}>
+            {materias.length === 0
+              ? 'Cada materia es una planta. Cuanto más estudiás, más crece.'
+              : `${materias.length} ${materias.length === 1 ? 'materia' : 'materias'} · ${formatoHoras(totalMs)} de estudio`}
+          </Text>
+        </View>
+
+        {activa && materiaActiva && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => abrirMateria(materiaActiva.id)}
+            style={({ pressed }) => [estilos.banner, pressed && { opacity: 0.85 }]}>
+            <Text style={estilos.bannerTexto} numberOfLines={1}>
+              💧 Regando <Text style={estilos.negrita}>{materiaActiva.nombre}</Text>
+            </Text>
+            <Text style={estilos.bannerReloj}>{formatoReloj(ahora - activa.inicio)}</Text>
+          </Pressable>
+        )}
+
+        {materias.length === 0 ? (
+          <View style={estilos.vacio}>
+            <Planta progreso={0} color={ColoresFlor[0]} semilla="vacio" tamano={140} />
+            <Text style={estilos.vacioTexto}>
+              Todavía no plantaste nada. Agregá la primera materia del semestre.
+            </Text>
+          </View>
+        ) : (
+          <View style={estilos.grilla} onLayout={(e) => setAnchoGrilla(e.nativeEvent.layout.width)}>
+            {materias.map((m) => (
+              <TarjetaMateria
+                key={m.id}
+                materia={m}
+                ms={msEstudiados(m.id, sesiones, activa, ahora)}
+                activa={activa?.materiaId === m.id}
+                ancho={anchoTarjeta}
+                onPress={() => abrirMateria(m.id)}
+              />
+            ))}
+          </View>
+        )}
+
+        <Boton titulo="+ Nueva materia" onPress={() => router.push('/nueva')} />
+      </View>
+    </ScrollView>
   );
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
+const estilos = StyleSheet.create({
+  pantalla: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: Colores.fondo,
+  },
+  contenido: {
+    paddingHorizontal: Espacio.m,
+    alignItems: 'center',
+  },
+  columna: {
+    width: '100%',
+    maxWidth: AnchoMaximo - Espacio.m * 2,
+    gap: Espacio.l,
+  },
+  marca: {
+    color: Colores.verde,
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: Espacio.xs,
+  },
+  titulo: {
+    color: Colores.texto,
+    fontSize: 34,
+    fontWeight: '800',
+  },
+  subtitulo: {
+    color: Colores.textoSuave,
+    fontSize: 15,
+    marginTop: Espacio.xs,
+  },
+  banner: {
+    backgroundColor: Colores.verde,
+    borderRadius: 16,
+    paddingVertical: Espacio.m - 2,
+    paddingHorizontal: Espacio.m,
     flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    gap: Espacio.s,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  bannerTexto: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    color: '#FFFFFF',
+    fontSize: 15,
   },
-  title: {
+  negrita: {
+    fontWeight: '700',
+  },
+  bannerReloj: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  grilla: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SEPARACION,
+  },
+  vacio: {
+    alignItems: 'center',
+    gap: Espacio.m,
+    paddingVertical: Espacio.l,
+  },
+  vacioTexto: {
+    color: Colores.textoSuave,
+    fontSize: 15,
     textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+    maxWidth: 280,
   },
 });
