@@ -27,6 +27,32 @@ Sin configurar nada más, la app funciona en **modo invitado** (los datos quedan
 4. Copiá `.env.example` como `.env.local` y completá la **Project URL** y la **publishable key** (o *anon key*) que están en **Project Settings → API Keys**. Nunca uses la *secret key* en la app.
 5. Volvé a arrancar `npx expo start` (las variables se leen al arrancar).
 
+## Publicar la web (gratis, con EAS Hosting)
+
+La web son archivos estáticos (no hay servidor propio): se arman con `expo export` y se suben a EAS Hosting, el hosting de Expo. El plan gratis incluye 100.000 visitas por mes y una dirección tipo `https://brote.expo.app`.
+
+**La primera vez:**
+
+1. Creá una cuenta gratis en [expo.dev](https://expo.dev/signup).
+2. Entrá desde la terminal: `npx eas-cli@latest login`.
+3. Publicá una versión de prueba: `npm run web:probar`. La primera vez te pide conectar el proyecto y **elegir el subdominio** (por ejemplo `brote`; después no se puede reusar uno que dejes). Te da una dirección de prueba tipo `https://brote--abc123.expo.app`.
+4. Probala: entrá, y también abrí directo un link interno (por ejemplo `/inicio` o un link de invitación) para confirmar que carga.
+5. Publicá la versión oficial: `npm run web:publicar` → `https://<tu-subdominio>.expo.app`.
+
+**Después de la primera vez:**
+
+- En `.env.local` poné `EXPO_PUBLIC_URL_WEB=https://<tu-subdominio>.expo.app` (para que los links de invitación apunten ahí) y volvé a correr `npm run web:publicar`.
+- En Supabase → *Authentication → URL Configuration*, poné esa dirección como **Site URL**.
+- Cada vez que cambies algo: `npm run web:publicar`. Las variables `EXPO_PUBLIC_…` se toman de `.env.local` en ese momento.
+
+**Opcional: publicar solo al subir a `main`.** El archivo `.eas/workflows/publicar-web.yml` publica la web en cada push a `main`. Para activarlo: conectá el repositorio de GitHub en expo.dev (*Project settings → GitHub*) y cargá las variables en EAS, porque ahí no existe `.env.local`:
+
+```bash
+npx eas-cli@latest env:create --environment production --name EXPO_PUBLIC_SUPABASE_URL --value https://<tu-proyecto>.supabase.co --visibility plaintext
+npx eas-cli@latest env:create --environment production --name EXPO_PUBLIC_SUPABASE_KEY --value <tu-publishable-key> --visibility plaintext
+npx eas-cli@latest env:create --environment production --name EXPO_PUBLIC_URL_WEB --value https://<tu-subdominio>.expo.app --visibility plaintext
+```
+
 ## Cómo funciona
 
 - **Árboles de Uruguay:** al plantar una materia te toca uno al azar: ombú, ceibo, jacarandá, butiá o sauce llorón. Elegís el color de las flores o frutos.

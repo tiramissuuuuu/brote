@@ -38,6 +38,17 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "2e734cb4-c997-42ff-be16-1122c0e37a4a"
+      }
+    },
+    "owner": "3lolo"
   }
 }
