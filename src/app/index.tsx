@@ -14,6 +14,7 @@ import { TarjetaDato } from '@/components/tarjeta-dato';
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
 import { useAhora } from '@/hooks/use-ahora';
+import { leer } from '@/lib/almacenamiento';
 import { ANCHO_LATERAL, useDisposicion } from '@/hooks/use-disposicion';
 import {
   calcularProgreso,
@@ -26,6 +27,7 @@ import {
   rachaDias,
   type Materia,
 } from '@/lib/brote';
+import { CLAVE_INVITACION } from '@/lib/grupos';
 import { useCuenta } from '@/state/cuenta';
 import { useJardin } from '@/state/jardin';
 
@@ -43,6 +45,9 @@ export default function Jardin() {
 
   if (estadoCuenta === 'cargando') return null;
   // Primera vez: en la web se muestra la página de inicio; en el celular, directo la bienvenida.
+  // Si quedó una invitación a un grupo pendiente (se abrió el link antes de tener cuenta), se retoma.
+  const invitacion = estadoCuenta === 'conectado' ? leer(CLAVE_INVITACION) : null;
+  if (invitacion) return <Redirect href={{ pathname: '/unirse/[codigo]', params: { codigo: invitacion } }} />;
   if (estadoCuenta === 'sin-elegir') return <Redirect href={Platform.OS === 'web' ? '/inicio' : '/bienvenida'} />;
 
   const ancho = escritorio

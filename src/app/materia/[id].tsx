@@ -11,6 +11,7 @@ import { alturaSuelo, Escena } from '@/components/escena';
 import { Festejo } from '@/components/festejo';
 import { ModoFoco } from '@/components/modo-foco';
 import { Panel } from '@/components/panel';
+import { PanelGrupo } from '@/components/panel-grupo';
 import { TarjetaDato } from '@/components/tarjeta-dato';
 import { Texto } from '@/components/texto';
 import { AnchoMaximo, Colores, Espacio } from '@/constants/theme';
@@ -181,6 +182,8 @@ export default function PantallaMateria() {
           ))}
         </View>
       </Panel>
+
+      <PanelGrupo materia={materia} />
 
       <Panel
         titulo="Semana a semana"

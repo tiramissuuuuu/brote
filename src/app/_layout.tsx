@@ -43,6 +43,8 @@ function App() {
         <Stack.Screen name="materia/[id]" options={{ title: 'Materia' }} />
         <Stack.Screen name="nueva" options={{ title: 'Plantar materia', presentation: 'modal' }} />
         <Stack.Screen name="estudiar" options={{ title: '¿Qué vas a estudiar?', presentation: 'modal' }} />
+        <Stack.Screen name="grupo/[id]" options={{ title: 'Grupo' }} />
+        <Stack.Screen name="unirse/[codigo]" options={{ title: 'Invitación a un grupo' }} />
         <Stack.Screen name="inicio" options={{ title: 'Brote · Cada materia es un árbol', animation: 'fade' }} />
         <Stack.Screen name="bienvenida" options={{ title: 'Brote', animation: 'fade' }} />
         <Stack.Screen name="entrar" options={{ title: 'Entrar' }} />
