@@ -44,7 +44,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "web:armar": "expo export --platform web",
+    "web:probar": "expo export --platform web && npx eas-cli@latest deploy",
+    "web:publicar": "expo export --platform web && npx eas-cli@latest deploy --prod"
   },
   "private": true
 }

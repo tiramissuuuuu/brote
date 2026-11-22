@@ -1,0 +1,15 @@
+# Publica la web automáticamente cada vez que se sube algo a main.
+# Opcional: solo funciona después de conectar el repo de GitHub en expo.dev (ver README, "Publicar la web").
+name: Publicar la web
+
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  deploy:
+    type: deploy
+    name: Publicar
+    environment: production
+    params:
+      prod: true
